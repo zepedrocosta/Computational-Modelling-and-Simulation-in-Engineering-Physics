@@ -20,19 +20,13 @@ def initialize_grid(size):
 # calcular a energia da grelha no final de um ciclo monte carlo
 def calculate_energy(grid, x, y, z):
     energy = 0
-    # Calculate interactions with nearest neighbors in a periodic boundary condition
-    for dx, dy, dz in [
-        (-1, 0, 0),
-        (1, 0, 0),
-        (0, -1, 0),
-        (0, 1, 0),
-        (0, 0, -1),
-        (0, 0, 1),
-    ]:
-        energy += (
-            grid[x, y, z] * grid[(x + dx) % size, (y + dy) % size, (z + dz) % size]
-        )
-    return energy
+    for i in range(3):
+        for j in range(3):
+            for k in range(3):
+                if i == 1 and j == 1 and k == 1:
+                    continue
+                energy += grid[x, y, z] * grid[(x + i - 1) % size, (y + j - 1) % size, (z + k - 1) % size]
+    return -energy
 
 def w(delta_epsilon, sigma_i_inicial, h, t):
     if delta_epsilon < 0:
@@ -56,8 +50,6 @@ def monte_carlo(grid, temperature, mc_cycles):
         new_energy = calculate_energy(grid, x, y, z)
         delta_energy = new_energy - current_energy
 
-        # if delta_energy > 0 and random.random() > np.exp(-delta_energy / temperature):
-        #     grid[x, y, z] *= -1
         grid[x, y, z] *= w(delta_energy, grid[x, y, z], 0, temperature)
 
         energies.append(np.sum(grid))
@@ -68,7 +60,7 @@ def monte_carlo(grid, temperature, mc_cycles):
 # Main simulation parameters
 size = 10
 temperature = 5.5
-mc_cycles = 50000
+mc_cycles = 10000
 
 # Initialize the grid
 grid = initialize_grid(size)
@@ -191,13 +183,13 @@ def simulacao_temp(temps, size , mc_cycles, h):
 def ferro_graf(m, sus, e, c, temps):
     fig, axs = plt.subplots(2, 2)
     axs[0, 0].plot(temps, m)
-    axs[0, 0].set_title('Magnetização')
+    axs[0, 0].set_title('m vs t')
     axs[0, 1].plot(temps, sus)
-    axs[0, 1].set_title('Susceptibilidade')
+    axs[0, 1].set_title('χ vs t')
     axs[1, 0].plot(temps, e)
-    axs[1, 0].set_title('Energia')
+    axs[1, 0].set_title('e vs t')
     axs[1, 1].plot(temps, c)
-    axs[1, 1].set_title('Calor Específico')
+    axs[1, 1].set_title('C vs t')
     fig.tight_layout()
     return fig
 
