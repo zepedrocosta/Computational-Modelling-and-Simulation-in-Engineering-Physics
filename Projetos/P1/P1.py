@@ -130,7 +130,7 @@ def capacidade_calorifica(sigma_epsilon, t, L):
     return C
 
 
-def simulacao_temp(temps, size, mc_cycles, h):
+def simulacao_temp(grid, temps, size, mc_cycles, h):
     """
     Simula o modelo de Ising em uma rede 3D.
 
@@ -151,7 +151,6 @@ def simulacao_temp(temps, size, mc_cycles, h):
     e = []
     c = []
     for t in temps:
-        grid = initialize_grid(size)
         M = np.zeros((size, size, size))
         E = 0
         M2 = 0
@@ -221,13 +220,12 @@ def monte_carlo_hysteresis(grid, temperature, mc_cycles, h_values):
 
 
 # Function to plot the hysteresis loop
-def plot_hysteresis(temperature, size, mc_cycles):
-    h_max = 2  # Maximum strength of magnetic field
+def plot_hysteresis(grid, temperature, size, mc_cycles):
+    h_max = 4  # Maximum strength of magnetic field
     h_values = np.concatenate(
-        [np.linspace(-h_max, h_max, 100), np.linspace(h_max, -h_max, 100)]
+        [np.linspace(h_max, -h_max, 50)]
     )
 
-    grid = initialize_grid(size)
     magnetizations = monte_carlo_hysteresis(grid, temperature, mc_cycles, h_values)
 
     plt.figure(figsize=(8, 6))
@@ -252,7 +250,7 @@ energies = monte_carlo_energy(grid, temperature, mc_cycles)
 plot_energy(mc_cycles, energies)
 
 temps = np.arange(0.5, 5.5, 0.1)
-m, sus, e, c = simulacao_temp(temps, 10, 1000, 0)
+m, sus, e, c = simulacao_temp(grid, temps, 10, 1000, 0)
 fig1 = ferro_graf(m, sus, e, c, temps)
 plt.show()
 
@@ -260,4 +258,4 @@ plt.show()
 # temps[sus == max_sus]
 
 # Hysteresis plot
-plot_hysteresis(temperature, size, mc_cycles)
+plot_hysteresis(grid, temperature, size, mc_cycles)
