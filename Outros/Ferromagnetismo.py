@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
 
+# BOMM, "DADO PELO STOR???"
 
 def transitionFunctionValues(t, h=0):
 
