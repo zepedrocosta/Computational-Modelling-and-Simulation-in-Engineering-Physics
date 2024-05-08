@@ -179,7 +179,7 @@ def hysteresis_loop(temperature, size, n_ciclos, h_values):
         print("Campo magnético externo", h)
         rede, order, e = ferromagnetic_simulation(size, n_ciclos, temperature, h)
         m = momento_magnetico_medio(order, size)
-        magnetizations = np.append(magnetizations, m)
+        magnetizations = np.append(magnetizations, np.sum(order) / size)
     return magnetizations
 
 # Functions to plot the final state of the grid
@@ -284,4 +284,4 @@ magnetizations = hysteresis_loop(temperature, size, (int)(mc_cicles * 0.1), h_va
 end = time.time()
 elapsedTime = end - start
 print("Elapsed time calculating hysteresis loop: ", elapsedTime / 60, " minutes")
-plot_hysteresis(temperatures, h_values, magnetizations)
+plot_hysteresis(temperature, h_values, magnetizations)
