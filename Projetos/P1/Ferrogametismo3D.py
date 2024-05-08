@@ -10,11 +10,11 @@ def transitionFunctionValues(t, h=0):
     ]
     return np.array(output)
 
-def w(sigma, soma, valuesW):
+def w(sigma, sigSoma, valuesW):
     # Adjusted for 3D
-    i = int(soma / 2 + 2)
+    i = int(sigSoma / 2 + 2)
     j = int(sigma / 2 + 1 / 2)
-    k = int(soma / 2 + 2) # Assuming soma is a 3D vector
+    k = int((sigSoma - sigma) / 2 + 2)    
     i = min(max(i, 0), valuesW.shape[0] - 1)
     j = min(max(j, 0), valuesW.shape[1] - 1)
     k = min(max(k, 0), valuesW.shape[2] - 1)
@@ -87,10 +87,6 @@ ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
 plt.show()
-
-# Printing the final state 
-print("Final state of the 3D grid:")
-print(rede)
 
 plt.plot(order)
 plt.show()
