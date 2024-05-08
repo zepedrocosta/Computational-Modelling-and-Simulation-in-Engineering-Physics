@@ -80,6 +80,7 @@ def ferroSimul(tamanho, nCiclos, temp, h):
     e = np.zeros(nCiclos)
 
     for i in range(nCiclos):
+        print("Ciclo", i)
         rede, eCiclo = cicloFerro(rede, tamanho, vizinhos, valuesW, h)
 
         order[i] = 2 * rede[rede == 1].shape[0] - tamanho**2
@@ -92,7 +93,7 @@ def ferroSimul(tamanho, nCiclos, temp, h):
     return rede, order, e
 
 
-t = 2.5
+t = 5.5
 h = 0.0
 tamanho = 10
 rede, order, e = ferroSimul(tamanho, 10000, t, h)
