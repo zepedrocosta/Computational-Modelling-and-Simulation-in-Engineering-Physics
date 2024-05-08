@@ -173,13 +173,23 @@ def calculate_curie_temperature(temps, m, sus, e, c):
     print(f"Temperatura de Curie estimada: {temps[sus == max_sus][0]}")
     print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
 
-def hysteresis_loop(temperature, size, n_ciclos, h_values):
+
+def hysteresis_loop(temperature, size, mc_cicles, h_values):
     magnetizations = np.array([])
     for h in h_values:
         print("Campo magnético externo", h)
-        rede, order, e = ferromagnetic_simulation(size, n_ciclos, temperature, h)
-        m = momento_magnetico_medio(order, size)
+        rede, order, e = ferromagnetic_simulation(size, mc_cicles, temperature, h)
         magnetizations = np.append(magnetizations, np.sum(order) / size)
+    return magnetizations
+
+def calc_magnetism_for_mult_temps(temperatures, mc_cicles, h_values, size):
+    magnetizations = np.array([])
+    for temperature in temperatures:
+        print()
+        magnetizations = np.append(
+            magnetizations,
+            hysteresis_loop(temperature, size, mc_cicles, h_values),
+        )
     return magnetizations
 
 # Functions to plot the final state of the grid
@@ -233,6 +243,21 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.ticklabel_format(style="plain")
     plt.show()
 
+def multipleTempsMagenetismPlots(temperatures, h_values, magnetizations):
+    fig, ax = plt.subplots(figsize=(8, 6))
+    for i, temperature in enumerate(temperatures):
+        ax.plot(
+            h_values,
+            magnetizations[i * len(h_values) : (i + 1) * len(h_values)],
+            "-o",
+            label=f"T = {temperature}",
+        )
+    ax.set_title("Magnetization vs. External Magnetic Field for Multiple Temperatures")
+    ax.set_xlabel("External Magnetic Field (h)")
+    ax.set_ylabel("Magnetization (M)")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
 
 temperature = 5.5
 h = 0.0
@@ -243,45 +268,55 @@ mc_cicles = 10000
 h_max = 4  # Maximum strength of magnetic field
 h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
-start = time.time()
-rede, order, e = ferromagnetic_simulation(size, mc_cicles, temperature, h)
-end = time.time()
-elapsedTime = end - start
-print(
-    "Elapsed time executing the ferromagnetic simulation:", elapsedTime / 60, " minutes"
-)
-
-plot_grid(rede)
-
-plot_graphs(order, e)
-
-sus = order.var() * size**2 / temperature
-print(sus)
-
-C = e.var() / (size**2 * temperature**2)
-print(C)
-
-temps = np.arange(0.5, 5.5, 0.1)
-
-start = time.time()
-m, sus, e, c = simulacao_temp(temps, size, (int)(mc_cicles * 0.1), h)
-end = time.time()
-elapsedTime = end - start
-print(
-    "Elapsed time calculating physical quantities (m, χ, e, C): ",
-    elapsedTime / 60,
-    " minutes",
-)
-
-plot_ferro_graph(m, sus, e, c, temps)
-
-calculate_curie_temperature(temps, m, sus, e, c)
-
 temperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
 
+# start = time.time()
+# rede, order, e = ferromagnetic_simulation(size, mc_cicles, temperature, h)
+# end = time.time()
+# elapsedTime = end - start
+# print(
+#     "Elapsed time executing the ferromagnetic simulation:", elapsedTime / 60, " minutes"
+# )
+
+# plot_grid(rede)
+
+# plot_graphs(order, e)
+
+# sus = order.var() * size**2 / temperature
+# print(sus)
+
+# C = e.var() / (size**2 * temperature**2)
+# print(C)
+
+# temps = np.arange(0.5, 5.5, 0.1)
+
+# start = time.time()
+# m, sus, e, c = simulacao_temp(temps, size, (int)(mc_cicles * 0.1), h)
+# end = time.time()
+# elapsedTime = end - start
+# print(
+#     "Elapsed time calculating physical quantities (m, χ, e, C): ",
+#     elapsedTime / 60,
+#     " minutes",
+# )
+
+# plot_ferro_graph(m, sus, e, c, temps)
+
+# calculate_curie_temperature(temps, m, sus, e, c)
+
+# start = time.time()
+# magnetizations = hysteresis_loop(temperature, size, (int)(mc_cicles * 0.1), h_values)
+# end = time.time()
+# elapsedTime = end - start
+# print("Elapsed time calculating hysteresis loop: ", elapsedTime / 60, " minutes")
+# plot_hysteresis(temperature, h_values, magnetizations)
+
+# Multiple temperatures magnetism plots
 start = time.time()
-magnetizations = hysteresis_loop(temperature, size, (int)(mc_cicles * 0.1), h_values)
+magnetizations = calc_magnetism_for_mult_temps(temperatures, (int)(mc_cicles * 0.1), h_values, size)
 end = time.time()
 elapsedTime = end - start
-print("Elapsed time calculating hysteresis loop: ", elapsedTime / 60, " minutes")
-plot_hysteresis(temperature, h_values, magnetizations)
+print(
+    f"Tempo gasto a calcular a histerese paramagnética para várias temperaturas: {elapsedTime} segundos"
+)
+multipleTempsMagenetismPlots(temperatures, h_values, magnetizations)
