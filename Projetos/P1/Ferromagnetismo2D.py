@@ -170,6 +170,7 @@ def simulacao_temp(temps, size, n_ciclos, h):
         c[i] = capacidade_calorifica(e_.var(), t, size)
     return m, sus, e, c
 
+
 # 1
 def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
     magnetizations = np.array([])
@@ -179,6 +180,7 @@ def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
         magnetizations = np.append(magnetizations, np.sum(order) / size)
     magnetizations /= size**2
     return magnetizations
+
 
 # 2
 def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values):
@@ -205,6 +207,7 @@ def calculate_curie_temperature(temps, m, sus, e, c):
     # print(f"Temperatura de Curie estimada: {temps[sus == max_sus][0]}")
     print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
 
+
 # 1
 def calc_magnetism_for_mult_temps_varying_temp(temperatures, mc_cycles, h_values, size):
     magnetizations = np.array([])
@@ -215,6 +218,7 @@ def calc_magnetism_for_mult_temps_varying_temp(temperatures, mc_cycles, h_values
             hysteresis_calc_varying_temp(temperatures, size, mc_cycles, h),
         )
     return magnetizations
+
 
 # 2
 def calc_magnetism_for_mult_temps_varying_h(temperatures, mc_cycles, h_values, size):
@@ -227,6 +231,7 @@ def calc_magnetism_for_mult_temps_varying_h(temperatures, mc_cycles, h_values, s
         )
     return magnetizations
 
+
 # Functions to plot the order and energy graphs
 def plot_graphs(order, e):
     plt.plot(order)
@@ -234,6 +239,7 @@ def plot_graphs(order, e):
 
     plt.plot(e)
     plt.show()
+
 
 # Functions to plot the graphs of m, χ, e and C
 def plot_ferro_graph(m, sus, e, c, temps):
@@ -264,6 +270,7 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.ticklabel_format(style="plain")
     plt.show()
 
+
 def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
     fig, ax = plt.subplots(figsize=(12, 12))
     for i, temperature in enumerate(temperatures):
@@ -279,6 +286,7 @@ def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
     ax.legend()
     ax.grid(True)
     plt.show()
+
 
 t = 5.5
 h = 0.0
@@ -317,15 +325,31 @@ print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segu
 plot_hysteresis(t, h_values, magnetizations)
 
 start = time.time()
-magnetism_for_mult_temps_varying_temp = calc_magnetism_for_mult_temps_varying_temp(magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size)
+magnetism_for_mult_temps_varying_temp = calc_magnetism_for_mult_temps_varying_temp(
+    magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size
+)
 end = time.time()
 elapsed_time = end - start
-print("Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando a temperatura:", elapsed_time, "segundos")
-plot_magnetism_for_mult_temps(magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_temp)
+print(
+    "Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando a temperatura:",
+    elapsed_time,
+    "segundos",
+)
+plot_magnetism_for_mult_temps(
+    magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_temp
+)
 
 start = time.time()
-magnetism_for_mult_temps_varying_h = calc_magnetism_for_mult_temps_varying_h(magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size)
+magnetism_for_mult_temps_varying_h = calc_magnetism_for_mult_temps_varying_h(
+    magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size
+)
 end = time.time()
 elapsed_time = end - start
-print("Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando o campo magnético externo:", elapsed_time, "segundos")
-plot_magnetism_for_mult_temps(magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_h)
+print(
+    "Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando o campo magnético externo:",
+    elapsed_time,
+    "segundos",
+)
+plot_magnetism_for_mult_temps(
+    magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_h
+)
