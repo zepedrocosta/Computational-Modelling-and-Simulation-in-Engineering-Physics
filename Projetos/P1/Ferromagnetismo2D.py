@@ -170,6 +170,19 @@ def simulacao_temp(temps, size, n_ciclos, h):
         c[i] = capacidade_calorifica(e_.var(), t, size)
     return m, sus, e, c
 
+def calculate_curie_temperature(temps, m, sus, e, c):
+    max_sus = max(sus)
+    temps[sus == max_sus]
+
+    max_c = max(c)
+    temps[c == max_c]
+
+    output = np.array([temps, m, sus, e, c]).transpose()
+    np.savetxt("results2D.tsv", output, delimiter="\t")
+
+    print("Temperaturas salvas no arquivo results2D.tsv")
+    # print(f"Temperatura de Curie estimada: {temps[sus == max_sus][0]}")
+    print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
 
 # Functions to plot the graphs of m, χ, e and C
 def plot_ferro_graph(m, sus, e, c, temps):
@@ -195,7 +208,6 @@ def hysteresis_loop(temperature, size, n_ciclos, h_values):
     for h in h_values:
         print("Campo magnético externo", h)
         rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
-        # m = momento_magnetico_medio(order, size)
         magnetizations = np.append(magnetizations, np.sum(order) / size)
     return magnetizations
 
@@ -224,10 +236,11 @@ temps = np.arange(0.5, 5.5, 0.1)
 m, sus, e, c = simulacao_temp(temps, tamanho, (int)(mc_cicles * 0.1), h)
 plot_ferro_graph(m, sus, e, c, temps)
 
+calculate_curie_temperature(temps, m, sus, e, c)
+
 # # h values
-# h_max = 4  # Maximum strength of magnetic field
-# h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
+h_max = 4  # Maximum strength of magnetic field
+h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
-
-# magnetizations = hysteresis_loop(t, tamanho, (int)(mc_cicles * 0.1), h_values)
-# plot_hysteresis(t, h_values, magnetizations)
+magnetizations = hysteresis_loop(t, tamanho, (int)(mc_cicles * 0.1), h_values)
+plot_hysteresis(t, h_values, magnetizations)
