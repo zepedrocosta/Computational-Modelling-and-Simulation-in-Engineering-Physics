@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import matplotlib.pylab as plt
 
@@ -81,7 +82,6 @@ def ferroSimul(tamanho, nCiclos, temp, h):
     e = np.zeros(nCiclos)
 
     for i in range(nCiclos):
-        print("Ciclo", i)
         rede, eCiclo = cicloFerro(rede, tamanho, vizinhos, valuesW, h)
 
         order[i] = 2 * rede[rede == 1].shape[0] - tamanho**2
@@ -170,6 +170,27 @@ def simulacao_temp(temps, size, n_ciclos, h):
         c[i] = capacidade_calorifica(e_.var(), t, size)
     return m, sus, e, c
 
+# 1
+def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
+    magnetizations = np.array([])
+    for temperature in temperatures:
+        print("Temperatura", temperature)
+        rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
+        magnetizations = np.append(magnetizations, np.sum(order) / size)
+    magnetizations /= size**2
+    return magnetizations
+
+# 2
+def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values):
+    magnetizations = np.array([])
+    for h in h_values:
+        print("Campo magnético externo", h)
+        rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
+        magnetizations = np.append(magnetizations, np.sum(order) / size)
+    magnetizations /= size**2
+    return magnetizations
+
+
 def calculate_curie_temperature(temps, m, sus, e, c):
     max_sus = max(sus)
     temps[sus == max_sus]
@@ -183,6 +204,36 @@ def calculate_curie_temperature(temps, m, sus, e, c):
     print("Temperaturas salvas no arquivo results2D.tsv")
     # print(f"Temperatura de Curie estimada: {temps[sus == max_sus][0]}")
     print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
+
+# 1
+def calc_magnetism_for_mult_temps_varying_temp(temperatures, mc_cycles, h_values, size):
+    magnetizations = np.array([])
+    for h in h_values:
+        print("Campo magnético externo", h)
+        magnetizations = np.append(
+            magnetizations,
+            hysteresis_calc_varying_temp(temperatures, size, mc_cycles, h),
+        )
+    return magnetizations
+
+# 2
+def calc_magnetism_for_mult_temps_varying_h(temperatures, mc_cycles, h_values, size):
+    magnetizations = np.array([])
+    for temperature in temperatures:
+        print("Temperatura = ", temperature)
+        magnetizations = np.append(
+            magnetizations,
+            hysteresis_calc_varying_h(temperature, size, mc_cycles, h_values),
+        )
+    return magnetizations
+
+# Functions to plot the order and energy graphs
+def plot_graphs(order, e):
+    plt.plot(order)
+    plt.show()
+
+    plt.plot(e)
+    plt.show()
 
 # Functions to plot the graphs of m, χ, e and C
 def plot_ferro_graph(m, sus, e, c, temps):
@@ -203,15 +254,6 @@ def plot_ferro_graph(m, sus, e, c, temps):
     plt.show()
 
 
-def hysteresis_loop(temperature, size, n_ciclos, h_values):
-    magnetizations = np.array([])
-    for h in h_values:
-        print("Campo magnético externo", h)
-        rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
-        magnetizations = np.append(magnetizations, np.sum(order) / size)
-    return magnetizations
-
-
 def plot_hysteresis(temperature, h_values, magnetizations):
     plt.figure(figsize=(8, 6))
     plt.plot(h_values, magnetizations)
@@ -222,25 +264,68 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.ticklabel_format(style="plain")
     plt.show()
 
+def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
+    fig, ax = plt.subplots(figsize=(12, 12))
+    for i, temperature in enumerate(temperatures):
+        ax.plot(
+            h_values,
+            magnetizations[i * len(h_values) : (i + 1) * len(h_values)],
+            "-o",
+            label=f"T = {temperature}",
+        )
+    ax.set_title("Magnetization vs. External Magnetic Field for Multiple Temperatures")
+    ax.set_xlabel("External Magnetic Field (h)")
+    ax.set_ylabel("Magnetization (M)")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
 
 t = 5.5
 h = 0.0
-tamanho = 10
+size = 10
 mc_cicles = 10000
-rede, order, e = ferroSimul(tamanho, mc_cicles, t, h)
-plt.plot(order)
-plt.show()
 
-temps = np.arange(0.5, 5.5, 0.1)
+start = time.time()
+rede, order, e = ferroSimul(size, mc_cicles, t, h)
+end = time.time()
+elapsed_time = end - start
+print("Tempo de execução a fazer a simulação:", elapsed_time, "segundos")
+plot_graphs(order, e)
 
-m, sus, e, c = simulacao_temp(temps, tamanho, (int)(mc_cicles * 0.1), h)
-plot_ferro_graph(m, sus, e, c, temps)
+temperatures = np.arange(0.5, 5.5, 0.1)
 
-calculate_curie_temperature(temps, m, sus, e, c)
+start = time.time()
+m, sus, e, c = simulacao_temp(temperatures, size, (int)(mc_cicles * 0.1), h)
+end = time.time()
+elapsed_time = end - start
+print("Tempo de execução a fazer a calcular as propriedades:", elapsed_time, "segundos")
+plot_ferro_graph(m, sus, e, c, temperatures)
 
-# # h values
+calculate_curie_temperature(temperatures, m, sus, e, c)
+
+# h values
 h_max = 4  # Maximum strength of magnetic field
 h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
-magnetizations = hysteresis_loop(t, tamanho, (int)(mc_cicles * 0.1), h_values)
+magnetizationsTemperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
+
+start = time.time()
+magnetizations = hysteresis_calc_varying_h(t, size, (int)(mc_cicles * 0.1), h_values)
+end = time.time()
+elapsed_time = end - start
+print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segundos")
 plot_hysteresis(t, h_values, magnetizations)
+
+start = time.time()
+magnetism_for_mult_temps_varying_temp = calc_magnetism_for_mult_temps_varying_temp(magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size)
+end = time.time()
+elapsed_time = end - start
+print("Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando a temperatura:", elapsed_time, "segundos")
+plot_magnetism_for_mult_temps(magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_temp)
+
+start = time.time()
+magnetism_for_mult_temps_varying_h = calc_magnetism_for_mult_temps_varying_h(magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size)
+end = time.time()
+elapsed_time = end - start
+print("Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando o campo magnético externo:", elapsed_time, "segundos")
+plot_magnetism_for_mult_temps(magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_h)
