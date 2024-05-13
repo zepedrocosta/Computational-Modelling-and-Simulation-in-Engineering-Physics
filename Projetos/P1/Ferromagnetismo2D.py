@@ -174,7 +174,7 @@ def simulacao_temp(temps, size, n_ciclos, h):
 def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
     magnetizations = np.array([])
     for temperature in temperatures:
-        print("Temperatura", temperature, end="\r")
+        print("Temperatura:", temperature, "Campo magnético externo:", h, end="\r")
         rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
         magnetizations = np.append(magnetizations, np.sum(order) / size)
     magnetizations /= size**2
@@ -185,7 +185,7 @@ def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
 def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values):
     magnetizations = np.array([])
     for h in h_values:
-        print("Temperatura: ", temperature, "Campo magnético externo", h, end="\r")
+        print("Temperatura:", temperature, "Campo magnético externo:", h, end="\r")
         rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
         magnetizations = np.append(magnetizations, np.sum(order) / size)
     magnetizations /= size**2
@@ -269,6 +269,25 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.show()
 
 
+# # 1
+# def plot_magnetism_for_mult_temps_1(temperatures, h_values, magnetizations):
+#     fig, ax = plt.subplots(figsize=(12, 12))
+#     for i, h in enumerate(h_values):
+#         ax.plot(
+#             temperatures,
+#             magnetizations[i * len(temperatures) : (i + 1) * len(temperatures)],
+#             "-o",
+#             label=f"h = {h}",
+#         )
+#     ax.set_title("Magnetization vs. Temperature for Multiple External Magnetic Fields")
+#     ax.set_xlabel("Temperature (T)")
+#     ax.set_ylabel("Magnetization (M)")
+#     ax.legend()
+#     ax.grid(True)
+#     plt.show()
+
+
+# 2
 def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
     fig, ax = plt.subplots(figsize=(12, 12))
     for i, temperature in enumerate(temperatures):
@@ -290,9 +309,8 @@ def timer(signal):
     seconds = 0
     while not signal.is_set():
         print(
-            "                                               ", "Timer : {} seconds".format(
-                seconds
-            ),
+            "                                               ",
+            "Temporizador : {} segundos".format(seconds),
             end="\r",
         )
         seconds += 1
@@ -303,8 +321,7 @@ t = 5.5
 h = 0.0
 size = 10
 mc_cicles = 10000
-
-start_program = time.time()
+times = np.array([])
 
 signal = threading.Event()
 thread_timer = threading.Thread(target=timer, args=(signal,))
@@ -315,7 +332,8 @@ end = time.time()
 signal.set()
 thread_timer.join()
 elapsed_time = end - start
-print("Tempo de execução a fazer a simulação:", elapsed_time, "segundos")
+times = np.append(times, elapsed_time)
+print("Tempo de execução a fazer a simulação inicial: ", elapsed_time, "segundos")
 plot_graphs(order, e)
 
 temperatures = np.arange(0.5, 5.5, 0.1)
@@ -329,6 +347,7 @@ end = time.time()
 signal.set()
 thread_timer.join()
 elapsed_time = end - start
+times = np.append(times, elapsed_time)
 print("Tempo de execução a fazer a calcular as propriedades:", elapsed_time, "segundos")
 plot_ferro_graph(m, sus, e, c, temperatures)
 
@@ -340,12 +359,13 @@ h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
 magnetizationsTemperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
 
-start = time.time()
-magnetizations = hysteresis_calc_varying_h(t, size, (int)(mc_cicles * 0.1), h_values)
-end = time.time()
-elapsed_time = end - start
-print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segundos")
-plot_hysteresis(t, h_values, magnetizations)
+# start = time.time()
+# magnetizations = hysteresis_calc_varying_h(t, size, (int)(mc_cicles * 0.1), h_values)
+# end = time.time()
+# elapsed_time = end - start
+# times = np.append(times, elapsed_time)
+# print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segundos")
+# plot_hysteresis(t, h_values, magnetizations)
 
 # start = time.time()
 # magnetism_for_mult_temps_varying_temp = calc_magnetism_for_mult_temps_varying_temp(
@@ -353,12 +373,13 @@ plot_hysteresis(t, h_values, magnetizations)
 # )
 # end = time.time()
 # elapsed_time = end - start
+# times = np.append(times, elapsed_time)
 # print(
 #     "Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando a temperatura:",
 #     elapsed_time,
 #     "segundos",
 # )
-# plot_magnetism_for_mult_temps(
+# plot_magnetism_for_mult_temps_1(
 #     magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_temp
 # )
 
@@ -373,6 +394,7 @@ end = time.time()
 signal.set()
 thread_timer.join()
 elapsed_time = end - start
+times = np.append(times, elapsed_time)
 print(
     "Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando o campo magnético externo:",
     elapsed_time,
@@ -382,6 +404,4 @@ plot_magnetism_for_mult_temps(
     magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_h
 )
 
-end_program = time.time()
-elapsed_time = end_program - start_program
-print("Tempo de execução total:", elapsed_time, "segundos")
+print("Tempo total de execução:", np.sum(times), "segundos")
