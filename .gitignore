@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 
 .vscode/
+results.tsv
+results2D.tsv
+test.py

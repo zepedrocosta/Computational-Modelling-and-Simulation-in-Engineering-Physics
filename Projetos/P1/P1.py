@@ -11,19 +11,36 @@ def initialize_grid(size):
 
 
 # Function to calculate the energy of a specific spin site considering the external magnetic field
-def calculate_energy(grid, x, y, z, h):
-    J = 1  # Exchange interaction strength
-    sum_neighbors = 0
-    for dx, dy, dz in [
-        (1, 0, 0),
-        (-1, 0, 0),
-        (0, 1, 0),
-        (0, -1, 0),
-        (0, 0, 1),
-        (0, 0, -1),
-    ]:
-        sum_neighbors += grid[(x + dx) % size, (y + dy) % size, (z + dz) % size]
-    return -J * grid[x, y, z] * sum_neighbors - h * grid[x, y, z]
+def calculate_energy(grid, size, x, y, z, h):
+    # Interaction strength
+    J = 1
+
+    # Current spin value at (x, y, z)
+    spin_current = grid[x][y][z]
+
+    # Compute neighbors with periodic boundary conditions
+    neighbors = [
+        grid[(x + 1) % size][y][z],
+        grid[(x - 1) % size][y][z],
+        grid[x][(y + 1) % size][z],
+        grid[x][(y - 1) % size][z],
+        grid[x][y][(z + 1) % size],
+        grid[x][y][(z - 1) % size],
+    ]
+
+    # Calculate the sum of the direct interactions with neighbors
+    sum_neighbors = sum(neighbors)
+
+    # Interaction energy with neighbors
+    E_spin = -J * spin_current * sum_neighbors
+
+    # Energy due to external magnetic field
+    E_field = -h * spin_current
+
+    # Total energy
+    total_energy = E_spin + E_field
+
+    return total_energy
 
 
 def transitionFunctionValues(t, h):
@@ -45,7 +62,7 @@ def w(sigma, sigSoma, valuesW):
 
 
 # Function to perform Monte Carlo simulation for a given temperature without magnetic fields for energy tracking
-def monte_carlo_energy(grid, temperature, mc_cycles):
+def calculate_energy_monte_carlo(grid, temperature, mc_cycles, size):
     energies = np.array([])
     for _ in range(mc_cycles):
         x, y, z = (
@@ -53,9 +70,9 @@ def monte_carlo_energy(grid, temperature, mc_cycles):
             random.randint(0, size - 1),
             random.randint(0, size - 1),
         )
-        current_energy = calculate_energy(grid, x, y, z, 0)
+        current_energy = calculate_energy(grid, size, x, y, z, 0)
         grid[x, y, z] *= -1  # Flip the spin
-        new_energy = calculate_energy(grid, x, y, z, 0)
+        new_energy = calculate_energy(grid, size, x, y, z, 0)
         delta_energy = new_energy - current_energy
 
         if delta_energy < 0 or random.random() < math.exp(-delta_energy / temperature):
@@ -131,7 +148,7 @@ def capacidade_calorifica(sigma_epsilon, t, L):
     return C
 
 
-def simulacao_temp(grid, temps, size, mc_cycles):
+def calculate_magnetic_properties(grid, temps, size, mc_cycles):
     """
     Simula o modelo de Ising em uma rede 3D.
 
@@ -163,9 +180,9 @@ def simulacao_temp(grid, temps, size, mc_cycles):
                 random.randint(0, size - 1),
                 random.randint(0, size - 1),
             )
-            current_energy = calculate_energy(grid, x, y, z, 0)
+            current_energy = calculate_energy(grid, size, x, y, z, 0)
             grid[x, y, z] *= -1
-            new_energy = calculate_energy(grid, x, y, z, 0)
+            new_energy = calculate_energy(grid, size, x, y, z, 0)
             delta_energy = new_energy - current_energy
 
             # grid[x, y, z] *= w(delta_energy, grid[x, y, z], 0, temperature)
@@ -188,32 +205,37 @@ def simulacao_temp(grid, temps, size, mc_cycles):
 
 
 # Function for Monte Carlo Simulations including a varying magnetic field for hysteresis
-def monte_carlo_hysteresis(grid, temperature, mc_cycles, h_values):
+def computeHysteresis(temperature, mc_cycles, h_values, size):
     magnetizations = np.array([])
     grid = initialize_grid(size)
     for h in h_values:
-        M = 0
+        M = np.zeros((size, size, size))
         for _ in range(mc_cycles):
             x, y, z = (
                 random.randint(0, size - 1),
                 random.randint(0, size - 1),
                 random.randint(0, size - 1),
             )
-            current_energy = calculate_energy(grid, x, y, z, h)
-            grid[x, y, z] *= -1  # Flip the spin
-            new_energy = calculate_energy(grid, x, y, z, h)
+            current_energy = calculate_energy(grid, size, x, y, z, h)
+            grid[x, y, z] *= -1
+            new_energy = calculate_energy(grid, size, x, y, z, h)
             delta_energy = new_energy - current_energy
 
-            if delta_energy < 0 or random.random() < math.exp(
-                -delta_energy / temperature
-            ):
+            if delta_energy < 0 or random.random() < math.exp(-delta_energy / temperature):
                 current_energy = new_energy
             else:
                 grid[x, y, z] *= -1  # Flip back if not accepted
+        magnetizations = np.append(magnetizations, np.sum(grid) / grid.size)
+    return magnetizations
 
-            M += np.sum(grid)
-        # magnetizations /= size**3
-        magnetizations = np.append(magnetizations, M)
+
+def calcMagnetismForMultTemps(temperatures, mc_cycles, h_values, size):
+    magnetizations = np.array([])
+    for temperature in temperatures:
+        magnetizations = np.append(
+            magnetizations,
+            computeHysteresis(temperature, mc_cycles, h_values, size),
+        )
     return magnetizations
 
 
@@ -233,16 +255,16 @@ def plot_ferro_graf(m, sus, e, c, temps):
     fig, axs = plt.subplots(2, 2)
     axs[0, 0].plot(temps, m)
     axs[0, 0].set_title("m vs t")
-    plt.ticklabel_format(style = 'plain')
+    # plt.ticklabel_format(style="plain")
     axs[0, 1].plot(temps, sus)
     axs[0, 1].set_title("χ vs t")
-    plt.ticklabel_format(style = 'plain')
+    # plt.ticklabel_format(style="plain")
     axs[1, 0].plot(temps, e)
     axs[1, 0].set_title("e vs t")
-    plt.ticklabel_format(style = 'plain')
+    # plt.ticklabel_format(style="plain")
     axs[1, 1].plot(temps, c)
     axs[1, 1].set_title("C vs t")
-    plt.ticklabel_format(style = 'plain')
+    # plt.ticklabel_format(style="plain")
     fig.tight_layout()
     plt.show()
 
@@ -255,11 +277,11 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.xlabel("External Magnetic Field (h)")
     plt.ylabel("Magnetization (M)")
     plt.grid(True)
-    plt.ticklabel_format(style = 'plain')
+    plt.ticklabel_format(style="plain")
     plt.show()
 
 
-def estimate_curie_temperature(temps, m, sus, e, c):
+def calculate_curie_temperature(temps, m, sus, e, c):
     max_sus = max(sus)
     temps[sus == max_sus]
 
@@ -271,21 +293,37 @@ def estimate_curie_temperature(temps, m, sus, e, c):
 
     data = np.loadtxt("results.tsv", delimiter="\t")
 
-    print(data)
-    print(f"Curie temperature estimate: {temps[c == max_c]}")
-    print(f"Curie temperature estimate: {temps[sus == max_sus]}")
+    # print(data)
+    print("Temperaturas salvas no arquivo results.tsv")
+    # print(f"Temperatura de Curie estimada: {temps[sus == max_sus][0]}")
+    print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
+
+
+def multipleTempsMagenetismPlots(temperatures, h_values, magnetizations):
+    fig, ax = plt.subplots(figsize=(8, 6))
+    for i, temperature in enumerate(temperatures):
+        ax.plot(
+            h_values,
+            magnetizations[i * len(h_values) : (i + 1) * len(h_values)],
+            "-o",
+            label=f"T = {temperature}",
+        )
+    ax.set_title("Magnetization vs. External Magnetic Field for Multiple Temperatures")
+    ax.set_xlabel("External Magnetic Field (h)")
+    ax.set_ylabel("Magnetization (M)")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
 
 
 # Main simulation parameters
-size = 10
+size = 10  # Size of the 3D grid
 temperature = 5.5  # Near the critical temperature for visualization
 mc_cycles = 10000
 
 # h values
 h_max = 4  # Maximum strength of magnetic field
-h_values = np.concatenate(
-    [np.linspace(-h_max, h_max, 10), np.linspace(h_max, -h_max, 10)]
-)
+h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
 valuesW = transitionFunctionValues(temperature, h_max)
 
@@ -294,30 +332,44 @@ grid = initialize_grid(size)
 
 # Energy tracking
 start = time.time()
-energies = monte_carlo_energy(grid, temperature, mc_cycles)
+energies = calculate_energy_monte_carlo(grid, temperature, mc_cycles, size)
 end = time.time()
 elapsedTime = end - start
-print(f"Tempo gasto a calcular a energia: {elapsedTime}")
+print(f"Tempo gasto a calcular a energia: {elapsedTime} segundos")
 plot_energy(mc_cycles, energies)
 
 # Ferromagnetic properties
 start = time.time()
 temps = np.arange(0.5, 5.5, 0.1)
-m, sus, e, c = simulacao_temp(grid, temps, 10, 1000)
+m, sus, e, c = calculate_magnetic_properties(grid, temps, size, (int)(mc_cycles * 0.1))
 end = time.time()
 elapsedTime = end - start
-print(f"Tempo gasto a calcular as propriedades ferromagnéticas: {elapsedTime}")
+print(f"Tempo gasto a calcular as propriedades ferromagnéticas: {elapsedTime} segundos")
 plot_ferro_graf(m, sus, e, c, temps)
 
 # Estimating the Curie temperature
-estimate_curie_temperature(temps, m, sus, e, c)
+calculate_curie_temperature(temps, m, sus, e, c)
 
-temperatures = np.array([0.5, 2, 3.5, 4, 5.3])
+temperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
 
 # Hysteresis tracking
 start = time.time()
-magnetizations = monte_carlo_hysteresis(grid, temperature, mc_cycles, h_values)
+magnetizations = computeHysteresis(temperature, mc_cycles, h_values, size)
 end = time.time()
 elapsedTime = end - start
-print(f"Tempo gasto a calcular a Paramagnetic hysteresis: {elapsedTime}")
+print(
+    f"Tempo gasto a calcular a histerese paramagnética para temperatura = {temperature}: {elapsedTime} segundos"
+)
 plot_hysteresis(temperature, h_values, magnetizations)
+
+# Multiple temperatures magnetism plots
+start = time.time()
+magnetizations = calcMagnetismForMultTemps(
+    temperatures, mc_cycles, h_values, size
+)
+end = time.time()
+elapsedTime = end - start
+print(
+    f"Tempo gasto a calcular a histerese paramagnética para várias temperaturas: {elapsedTime} segundos"
+)
+multipleTempsMagenetismPlots(temperatures, h_values, magnetizations)
