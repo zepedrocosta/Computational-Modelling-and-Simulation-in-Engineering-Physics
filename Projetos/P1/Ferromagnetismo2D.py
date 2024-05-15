@@ -170,15 +170,15 @@ def simulacao_temp(temps, size, n_ciclos, h):
     return m, sus, e, c
 
 
-# 1
-def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
-    magnetizations = np.array([])
-    for temperature in temperatures:
-        print("Temperatura:", temperature, "Campo magnético externo:", h, end="\r")
-        rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
-        magnetizations = np.append(magnetizations, np.sum(order) / size)
-    magnetizations /= size**2
-    return magnetizations
+# # 1
+# def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
+#     magnetizations = np.array([])
+#     for temperature in temperatures:
+#         print("Temperatura:", temperature, "Campo magnético externo:", h, end="\r")
+#         rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
+#         magnetizations = np.append(magnetizations, np.sum(order) / size)
+#     magnetizations /= size**2
+#     return magnetizations
 
 
 # 2
@@ -207,16 +207,16 @@ def calculate_curie_temperature(temps, m, sus, e, c):
     print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
 
 
-# 1
-def calc_magnetism_for_mult_temps_varying_temp(temperatures, mc_cycles, h_values, size):
-    magnetizations = np.array([])
-    for h in h_values:
-        print("Campo magnético externo", h, end="\r")
-        magnetizations = np.append(
-            magnetizations,
-            hysteresis_calc_varying_temp(temperatures, size, mc_cycles, h),
-        )
-    return magnetizations
+# # 1
+# def calc_magnetism_for_mult_temps_varying_temp(temperatures, mc_cycles, h_values, size):
+#     magnetizations = np.array([])
+#     for h in h_values:
+#         print("Campo magnético externo", h, end="\r")
+#         magnetizations = np.append(
+#             magnetizations,
+#             hysteresis_calc_varying_temp(temperatures, size, mc_cycles, h),
+#         )
+#     return magnetizations
 
 
 # 2
