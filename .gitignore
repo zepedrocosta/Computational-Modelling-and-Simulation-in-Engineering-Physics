@@ -162,3 +162,4 @@ cython_debug/
 .vscode/
 results.tsv
 results2D.tsv
+test.py
