@@ -4,7 +4,7 @@ import matplotlib.pylab as plt
 import threading
 
 
-def transitionFunctionValues(t, h=0):
+def transitionFunctionValues(t, h):
 
     deltaE = [[j + i * h for i in range(-1, 3, 2)] for j in range(-4, 6, 2)]
     output = [
@@ -233,9 +233,11 @@ def calc_magnetism_for_mult_temps_varying_h(temperatures, mc_cycles, h_values, s
 # Functions to plot the order and energy graphs
 def plot_graphs(order, e):
     plt.plot(order)
+    plt.title("Order vs MC Cycles")
     plt.show()
 
     plt.plot(e)
+    plt.title("Energy vs MC Cycles")
     plt.show()
 
 
@@ -359,13 +361,13 @@ h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
 magnetizationsTemperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
 
-# start = time.time()
-# magnetizations = hysteresis_calc_varying_h(t, size, (int)(mc_cicles * 0.1), h_values)
-# end = time.time()
-# elapsed_time = end - start
-# times = np.append(times, elapsed_time)
-# print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segundos")
-# plot_hysteresis(t, h_values, magnetizations)
+start = time.time()
+magnetizations = hysteresis_calc_varying_h(t, size, (int)(mc_cicles * 0.1), h_values)
+end = time.time()
+elapsed_time = end - start
+times = np.append(times, elapsed_time)
+print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segundos")
+plot_hysteresis(t, h_values, magnetizations)
 
 # start = time.time()
 # magnetism_for_mult_temps_varying_temp = calc_magnetism_for_mult_temps_varying_temp(
