@@ -207,19 +207,6 @@ def calculate_curie_temperature(temps, m, sus, e, c):
     print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
 
 
-# # 1
-# def calc_magnetism_for_mult_temps_varying_temp(temperatures, mc_cycles, h_values, size):
-#     magnetizations = np.array([])
-#     for h in h_values:
-#         print("Campo magnético externo", h, end="\r")
-#         magnetizations = np.append(
-#             magnetizations,
-#             hysteresis_calc_varying_temp(temperatures, size, mc_cycles, h),
-#         )
-#     return magnetizations
-
-
-# 2
 def calc_magnetism_for_mult_temps_varying_h(temperatures, mc_cycles, h_values, size):
     magnetizations = np.array([])
     for temperature in temperatures:
@@ -271,25 +258,6 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.show()
 
 
-# # 1
-# def plot_magnetism_for_mult_temps_1(temperatures, h_values, magnetizations):
-#     fig, ax = plt.subplots(figsize=(12, 12))
-#     for i, h in enumerate(h_values):
-#         ax.plot(
-#             temperatures,
-#             magnetizations[i * len(temperatures) : (i + 1) * len(temperatures)],
-#             "-o",
-#             label=f"h = {h}",
-#         )
-#     ax.set_title("Magnetization vs. Temperature for Multiple External Magnetic Fields")
-#     ax.set_xlabel("Temperature (T)")
-#     ax.set_ylabel("Magnetization (M)")
-#     ax.legend()
-#     ax.grid(True)
-#     plt.show()
-
-
-# 2
 def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
     fig, ax = plt.subplots(figsize=(12, 12))
     for i, temperature in enumerate(temperatures):
@@ -369,21 +337,6 @@ times = np.append(times, elapsed_time)
 print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segundos")
 plot_hysteresis(t, h_values, magnetizations)
 
-# start = time.time()
-# magnetism_for_mult_temps_varying_temp = calc_magnetism_for_mult_temps_varying_temp(
-#     magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size
-# )
-# end = time.time()
-# elapsed_time = end - start
-# times = np.append(times, elapsed_time)
-# print(
-#     "Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando a temperatura:",
-#     elapsed_time,
-#     "segundos",
-# )
-# plot_magnetism_for_mult_temps_1(
-#     magnetizationsTemperatures, h_values, magnetism_for_mult_temps_varying_temp
-# )
 
 signal = threading.Event()
 thread_timer = threading.Thread(target=timer, args=(signal,))
