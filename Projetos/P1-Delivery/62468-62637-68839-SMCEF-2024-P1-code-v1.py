@@ -1,3 +1,4 @@
+import threading
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -70,11 +71,11 @@ def cicloFerro(rede, tamanho, valuesW, h):
     for x in range(tamanho):
         for y in range(tamanho):
             for z in range(tamanho):
-                sigma = rede[x, y, z]  # Direcção do spin do ponto de rede
+                sigma = rede[x, y, z]
                 soma = somaVizinhos(rede, tamanho, x, y, z)
                 soma *= sigma
                 etmp = -0.5 * (soma - sigma * h)
-                p = np.random.random()  # Número aleatório entre 0 e 1 para compar
+                p = np.random.random()
 
                 if p < w(sigma, soma, valuesW):
                     rede[x, y, z] = -sigma
@@ -199,7 +200,7 @@ def simulacao_temp(temps, size, n_ciclos, h):
     e = np.array([0.0] * len(temps))
     c = np.array([0.0] * len(temps))
     for i, t in enumerate(temps):
-        print("Temperatura", t)
+        print("Temperatura:", t, end="\r")
         rede, order, e_ = ferroSimul(size, n_ciclos, t, h)
         m[i] = momento_magnetico_medio(order, size)
         sus[i] = susceptibilidade_magnetica(order.var(), t, size)
@@ -223,7 +224,7 @@ def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values):
     """
     magnetizations = np.array([])
     for h in h_values:
-        print("Campo magnético externo", h)
+        print("Temperatura:", temperature, "Campo magnético externo:", h, end="\r")
         rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
         magnetizations = np.append(magnetizations, np.sum(order) / size)
     magnetizations /= size**2
@@ -270,7 +271,6 @@ def calc_magnetism_for_mult_temps(temperatures, mc_cycles, h_values, size):
     """
     magnetizations = np.array([])
     for temperature in temperatures:
-        print("Temperatura = ", temperature)
         magnetizations = np.append(
             magnetizations,
             hysteresis_calc_varying_h(temperature, size, mc_cycles, h_values),
@@ -286,6 +286,7 @@ def plot_grid(rede):
     - rede: Rede com os spins
     """
     fig = plt.figure()
+    plt.title("Rede 3D")
     ax = fig.add_subplot(111, projection="3d")
     x, y, z = np.where(rede == 1)
     ax.scatter(x, y, z, c="r", marker="o")
@@ -295,7 +296,6 @@ def plot_grid(rede):
     plt.show()
 
 
-# Functions to plot the order and energy graphs
 def plot_graphs(order, e):
     """
     Plota os gráficos da ordem e da energia.
@@ -305,9 +305,15 @@ def plot_graphs(order, e):
     - e: Energia
     """
     plt.plot(order)
+    plt.title("Order vs MC Cycles")
+    plt.xlabel("MC Cycles")
+    plt.ylabel("Order")
     plt.show()
 
     plt.plot(e)
+    plt.title("Energy vs MC Cycles")
+    plt.xlabel("MC Cycles")
+    plt.ylabel("Energy")
     plt.show()
 
 
@@ -383,52 +389,86 @@ def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
     plt.show()
 
 
+def timer(signal):
+    """
+    Função temporizador.
+
+    Args:
+    - signal: Sinal de paragem
+    """
+    start_time = time.time()
+    while not signal.is_set():
+        seconds = int(time.time() - start_time)
+        print(
+            "                                               ",
+            "Temporizador : {} segundos".format(seconds),
+            end="\r",
+        )
+        time.sleep(1)
+
+
 temperature = 5.5
 h = 0.0
 size = 10
 mc_cicles = 10000
+times = np.array([])
 
+signal = threading.Event()
+thread_timer = threading.Thread(target=timer, args=(signal,))
+thread_timer.start()
 start = time.time()
 rede, order, e = ferroSimul(size, mc_cicles, temperature, h)
 end = time.time()
+signal.set()
+thread_timer.join()
 elapsed_time = end - start
-print("Tempo de execução a fazer a simulação:", elapsed_time, "segundos")
+times = np.append(times, elapsed_time)
+print("Tempo de execução a fazer a simulação inicial: ", elapsed_time, "segundos")
 plot_grid(rede)
 plot_graphs(order, e)
 
 temperatures = np.arange(0.5, 5.5, 0.1)
 
+signal = threading.Event()
+thread_timer = threading.Thread(target=timer, args=(signal,))
+thread_timer.start()
 start = time.time()
 m, sus, e, c = simulacao_temp(temperatures, size, (int)(mc_cicles * 0.1), h)
 end = time.time()
+signal.set()
+thread_timer.join()
 elapsed_time = end - start
+times = np.append(times, elapsed_time)
 print("Tempo de execução a fazer a calcular as propriedades:", elapsed_time, "segundos")
 plot_ferro_graph(m, sus, e, c, temperatures)
 
 calculate_curie_temperature(temperatures, m, sus, e, c)
 
-# h values
-h_max = 4  # Maximum strength of magnetic field
+h_max = 4 
 h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
 magnetizationsTemperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
 
 start = time.time()
-magnetizations = hysteresis_calc_varying_h(
-    temperature, size, (int)(mc_cicles * 0.1), h_values
-)
+magnetizations = hysteresis_calc_varying_h(temperature, size, (int)(mc_cicles * 0.1), h_values)
 end = time.time()
 elapsed_time = end - start
+times = np.append(times, elapsed_time)
 print("Tempo de execução a fazer a calcular a histerese:", elapsed_time, "segundos")
 plot_hysteresis(temperature, h_values, magnetizations)
 
-
+signal = threading.Event()
+thread_timer = threading.Thread(target=timer, args=(signal,))
+thread_timer.start()
 start = time.time()
 magnetism_for_mult_temps = calc_magnetism_for_mult_temps(
     magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size
 )
 end = time.time()
+signal.set()
+thread_timer.join()
 elapsed_time = end - start
+times = np.append(times, elapsed_time)
 print(
     "Tempo de execução a fazer a calcular o magnetismo para múltiplas temperaturas variando o campo magnético externo:",
     elapsed_time,
@@ -437,3 +477,5 @@ print(
 plot_magnetism_for_mult_temps(
     magnetizationsTemperatures, h_values, magnetism_for_mult_temps
 )
+
+print("Tempo total de execução:", np.sum(times), "segundos")
