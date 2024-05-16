@@ -5,49 +5,21 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 def transitionFunctionValues(t, h):
-    """
-    Calcula os valores da função de transição.
 
-    Args:
-    - t: Temperatura
-    - h: Campo magnético externo
-
-    Returns:
-    - output: Valores da função de transição
-    """
-    deltaE = []
-    for k in range(-7, 9, 2):
-        plane = []
-        for j in range(-4, 6, 2):
-            line = []
-            for i in range(-1, 3, 2):
-                line.append(j + i * h + k * h)
-            plane.append(line)
-        deltaE.append(plane)
-
-    output = []
-    for plane in deltaE:
-        output_plane = []
-        for row in plane:
-            inner_list = []
-            for elem in row:
-                if elem <= 0:
-                    inner_list.append(1)
-                else:
-                    inner_list.append(np.exp(-2 * elem / t))
-            output_plane.append(inner_list)
-        output.append(output_plane)
+    deltaE = [[j + i * h for i in range(-1, 3, 2)] for j in range(-6, 8, 2)]
+    output = [
+        [1 if elem <= 0 else np.exp(-2 * elem / t) for elem in row] for row in deltaE
+    ]
 
     return np.array(output)
 
 
 def w(sigma, sigSoma, valuesW):
 
-    i = int((sigSoma + 8) / 2)
-    j = int((sigma + 1) / 2)
-    k = int((sigSoma + 8) % 2)
+    i = int(sigSoma / 2 + 2)
+    j = int(sigma / 2 + 1 / 2)
 
-    return valuesW[i, j, k]
+    return valuesW[i, j]
 
 
 def somaVizinhos(rede, tamanho, x, y, z):
@@ -442,6 +414,7 @@ rede, order, e = ferroSimul(size, mc_cicles, temperature, h)
 end = time.time()
 elapsed_time = end - start
 print("Tempo de execução a fazer a simulação:", elapsed_time, "segundos")
+plot_grid(rede)
 plot_graphs(order, e)
 
 temperatures = np.arange(0.5, 5.5, 0.1)
