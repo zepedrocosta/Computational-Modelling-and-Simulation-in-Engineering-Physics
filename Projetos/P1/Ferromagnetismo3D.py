@@ -369,6 +369,9 @@ def plot_ferro_graph(m, sus, e, c, temps):
     axs[1, 1].set_title("C vs t")
     # plt.ticklabel_format(style="plain")
     fig.tight_layout()
+    file_name = "propriedades.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
@@ -388,6 +391,9 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.ylabel("Magnetization (M)")
     plt.grid(True)
     plt.ticklabel_format(style="plain")
+    file_name = "histerese.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
@@ -413,10 +419,19 @@ def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
     ax.set_ylabel("Magnetization (M)")
     ax.legend()
     ax.grid(True)
+    file_name = "histerese para varias temperaturas.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
 def moveFile(file_name):
+    """
+    Move um ficheiro para a pasta "Plots and Results".
+    
+    Args:
+    - file_name: Nome do ficheiro
+    """
     file_location = os.getcwd()
 
     script_location = os.path.abspath(__file__)
