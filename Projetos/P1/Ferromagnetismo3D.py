@@ -317,6 +317,9 @@ def plot_grid(rede):
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
     plt.show()
+    file_name = "rede.svg"
+    fig.savefig(file_name, dpi=1200)
+    moveFile(file_name)
 
 
 # Functions to plot the order and energy graphs
@@ -329,9 +332,15 @@ def plot_graphs(order, e):
     - e: Energia
     """
     plt.plot(order)
+    file_name = "ordem.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
     plt.plot(e)
+    file_name = "energia.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
@@ -424,20 +433,20 @@ def moveFile(file_name):
 
 
 spin = -1
-temperature = 1
+temperature = 5.5
 h = 0.0
 size = 10
 mc_cicles = 10000
 
-# start = time.time()
-# rede, order, e = ferroSimul(size, mc_cicles, temperature, h, spin)
-# end = time.time()
-# elapsed_time = end - start
-# print("Tempo de execução a fazer a simulação:", elapsed_time, "segundos")
-# plot_grid(rede)
-# plot_graphs(order, e)
+start = time.time()
+rede, order, e = ferroSimul(size, mc_cicles, temperature, h, spin)
+end = time.time()
+elapsed_time = end - start
+print("Tempo de execução a fazer a simulação:", elapsed_time, "segundos")
+plot_grid(rede)
+plot_graphs(order, e)
 
-temperatures = np.arange(0.5, 1.0, 0.1)
+temperatures = np.arange(0.5, 5.5, 0.1)
 
 start = time.time()
 m, sus, e, c = simulacao_temp(temperatures, size, (int)(mc_cicles * 0.1), h, spin)
