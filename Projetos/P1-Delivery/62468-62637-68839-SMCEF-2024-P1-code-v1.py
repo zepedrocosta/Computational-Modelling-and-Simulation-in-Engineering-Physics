@@ -232,12 +232,6 @@ def temperatureSimulation(temps, size, n_ciclos, h, spin):
     e = np.array([0.0] * len(temps))
     c = np.array([0.0] * len(temps))
     for i, t in enumerate(temps):
-        print(
-            "                                               ",
-            "Temperatura",
-            t,
-            end="\r",
-        )
         rede, order, e_ = ferromagnetic_simulation(size, n_ciclos, t, h, spin)
         m[i] = calculate_average_magnetic_moment(order, size)
         sus[i] = calculate_magnetic_susceptibility(order.var(), t, size)
@@ -261,14 +255,6 @@ def hysteresis_calc_varying_h(temperature, size, cycles, h_values, spin):
     """
     magnetizations = np.array([])
     for h in h_values:
-        print(
-            "                                               ",
-            "Temperatura:",
-            temperature,
-            "Campo magnético externo:",
-            h,
-            end="\r",
-        )
         rede, order, e = ferromagnetic_simulation(size, cycles, temperature, h, spin)
         magnetizations = np.append(magnetizations, np.sum(order) / size)
     magnetizations /= size**2
