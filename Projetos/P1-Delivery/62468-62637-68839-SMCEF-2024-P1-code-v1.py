@@ -47,10 +47,10 @@ def neighbours_table(size):
     Cria uma tabela com os vizinhos.
 
     Args:
-    - tamanho: Tamanho da rede
+    - size: Tamanho da rede
 
     Returns:
-    - vizinhos: Tabela com os vizinhos
+    - neighbours: Tabela com os vizinhos
     """
     vizPlus = [i + 1 for i in range(size)]
     vizPlus[-1] = 0
@@ -65,17 +65,17 @@ def initialize_grid(size, spin):
     Inicializa a rede.
 
     Args:
-    - tamanho: Tamanho da rede
+    - size: Tamanho da rede
     - spin: Spin inicial
 
     Returns:
-    - rede: Rede com os spins
+    - grid: Rede com os spins
     """
     if spin == -1 or spin == 1:
-        rede = np.full((size, size, size), spin, dtype="int")
+        grid = np.full((size, size, size), spin, dtype="int")
     else:
-        rede = np.random.choice([-1, 1], size=(size, size, size))
-    return rede
+        grid = np.random.choice([-1, 1], size=(size, size, size))
+    return grid
 
 
 def ferromagnetic_cycle(grid, neighbours, size, valuesW, h):
@@ -83,13 +83,14 @@ def ferromagnetic_cycle(grid, neighbours, size, valuesW, h):
     Faz um ciclo de Monte Carlo para o ferromagnetismo em 3D.
 
     Args:
-    - rede: Rede com os spins
-    - tamanho: Tamanho da rede
+    - grid: Rede com os spins
+    - neighbours: Tabela com os vizinhos
+    - size: Tamanho da rede
     - valuesW: Valores da função de transição
     - h: Campo magnético externo
 
     Returns:
-    - rede: Rede com os spins
+    - grid: Rede com os spins
     - e: Energia no ponto
     """
     e = 0
@@ -123,30 +124,31 @@ def ferromagnetic_simulation(size, cycles, temperature, h, spin):
     Simula o ferromagnetismo em 3D.
 
     Args:
-    - tamanho: Tamanho da rede
-    - nCiclos: Número de ciclos
-    - temp: Temperatura
+    - size: Tamanho da rede
+    - cycles: Número de ciclos
+    - temperature: Temperatura
     - h: Campo magnético externo
+    - spin: Spin inicial
 
     Returns:
-    - rede: Rede com os spins
+    - grid: Rede com os spins
     - order: Fator de ordem
     - e: Energia
     """
-    rede = initialize_grid(size, spin)
+    grid = initialize_grid(size, spin)
     vizinhos = neighbours_table(size)
     valuesW = transition_function_values(temperature, h)
     order = np.zeros(cycles)
     e = np.zeros(cycles)
 
     for i in range(cycles):
-        rede, eCiclo = ferromagnetic_cycle(rede, vizinhos, size, valuesW, h)
-        order[i] = 2 * rede[rede == 1].shape[0] - size**3
+        grid, eCiclo = ferromagnetic_cycle(grid, vizinhos, size, valuesW, h)
+        order[i] = 2 * grid[grid == 1].shape[0] - size**3
         e[i] = eCiclo
 
     order /= size**3
     e /= size**3
-    return rede, order, e
+    return grid, order, e
 
 
 def calculate_average_magnetic_moment(M, L):
@@ -211,14 +213,14 @@ def calculate_heat_capacity(sigma_epsilon, t, L):
     return C
 
 
-def temperatureSimulation(temps, size, n_ciclos, h, spin):
+def temperature_simulation(temps, size, n_cycles, h, spin):
     """
     Simula o ferromagnetismo em 3D calculando as propriedades ferromagneticas para várias temperaturas.
 
     Args:
     - temps: Lista de temperaturas
     - size: Tamanho da rede
-    - n_ciclos: Número de ciclos de Monte Carlo
+    - n_cycles: Número de ciclos de Monte Carlo
     - h: Campo magnético externo
 
     Returns:
@@ -232,7 +234,7 @@ def temperatureSimulation(temps, size, n_ciclos, h, spin):
     e = np.array([0.0] * len(temps))
     c = np.array([0.0] * len(temps))
     for i, t in enumerate(temps):
-        rede, order, e_ = ferromagnetic_simulation(size, n_ciclos, t, h, spin)
+        rede, order, e_ = ferromagnetic_simulation(size, n_cycles, t, h, spin)
         m[i] = calculate_average_magnetic_moment(order, size)
         sus[i] = calculate_magnetic_susceptibility(order.var(), t, size)
         e[i] = calculate_average_energy_per_network_point(e_.sum(), size)
@@ -348,10 +350,10 @@ def plot_grid(grid):
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
-    plt.show()
     file_name = "rede.svg"
     fig.savefig(file_name, dpi=1200)
     moveFile(file_name)
+    plt.show()
 
 
 def plot_graphs(order, e):
@@ -526,7 +528,7 @@ signal = threading.Event()
 thread_timer = threading.Thread(target=timer, args=(signal,))
 thread_timer.start()
 start = time.time()
-m, sus, e, c = temperatureSimulation(
+m, sus, e, c = temperature_simulation(
     temperatures, size, (int)(mc_cycles * 0.1), h, spin
 )
 end = time.time()
