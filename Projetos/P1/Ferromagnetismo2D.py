@@ -1,3 +1,5 @@
+import os
+import shutil
 import time
 import numpy as np
 import matplotlib.pylab as plt
@@ -5,7 +7,6 @@ import threading
 
 
 def transitionFunctionValues(t, h):
-
     deltaE = [[j + i * h for i in range(-1, 3, 2)] for j in range(-4, 6, 2)]
     output = [
         [1 if elem <= 0 else np.exp(-2 * elem / t) for elem in row] for row in deltaE
@@ -15,7 +16,6 @@ def transitionFunctionValues(t, h):
 
 
 def w(sigma, sigSoma, valuesW):
-
     i = int(sigSoma / 2 + 2)
     j = int(sigma / 2 + 1 / 2)
 
@@ -23,7 +23,6 @@ def w(sigma, sigSoma, valuesW):
 
 
 def vizinhosTabela(tamanho):
-
     vizMais = [i + 1 for i in range(tamanho)]
     vizMais[-1] = 0
     vizMenos = [i - 1 for i in range(tamanho)]
@@ -32,7 +31,6 @@ def vizinhosTabela(tamanho):
 
 
 def inicializacao(tamanho, valor=-1):
-
     if valor != 0:
         rede = np.full((tamanho, tamanho), valor, dtype="int")
     else:
@@ -41,12 +39,10 @@ def inicializacao(tamanho, valor=-1):
 
 
 def cicloFerro(rede, tamanho, vizinhos, valuesW, h):
-
     e = 0
     for i in range(tamanho):
         for j in range(tamanho):
-            sigma = rede[i, j]  # Direcção do spin do ponto de rede
-            # A soma das direcções dos primeiros vizinhos
+            sigma = rede[i, j]
             soma = (
                 rede[vizinhos[0, i], j]
                 + rede[vizinhos[1, i], j]
@@ -57,8 +53,7 @@ def cicloFerro(rede, tamanho, vizinhos, valuesW, h):
             etmp = -0.5 * (soma - sigma * h)
             p = (
                 np.random.random()
-            )  # Número aleatório entre 0 e 1, distribuição uniforme
-
+            ) 
             if p < w(sigma, soma, valuesW):
                 rede[i, j] = -sigma
                 etmp = -etmp
@@ -69,7 +64,6 @@ def cicloFerro(rede, tamanho, vizinhos, valuesW, h):
 
 
 def ferroSimul(tamanho, nCiclos, temp, h):
-
     rede = inicializacao(tamanho)
 
     valuesW = transitionFunctionValues(temp, h)
@@ -94,63 +88,21 @@ def ferroSimul(tamanho, nCiclos, temp, h):
 
 
 def momento_magnetico_medio(M, L):
-    """
-    Calcula o momento magnético médio da rede.
-
-    Args:
-    - M: Momento magnético médio da rede
-    - L: Tamanho da rede
-
-    Returns:
-    - m: Momento magnético médio da rede com o fator de ordem
-    """
     m = np.linalg.norm(M) / (L**2)
     return m
 
 
 def energia_media_por_ponto_de_rede(E, L):
-    """
-    Calcula a energia média por ponto de rede.
-
-    Args:
-    - E: Energia média por ponto de rede
-    - L: Tamanho da rede
-
-    Returns:
-    - epsilon: Energia média por ponto de rede
-    """
     epsilon = E / (L**2)
     return epsilon
 
 
 def susceptibilidade_magnetica(sigma_M, t, L):
-    """
-    Calcula a susceptibilidade magnética.
-
-    Args:
-    - sigma_M: Variância do momento magnético
-    - t: Temperatura
-    - L: Tamanho da rede
-
-    Returns:
-    - chi: Susceptibilidade magnética
-    """
     chi = ((sigma_M**2) / t) * (L**2)
     return chi
 
 
 def capacidade_calorifica(sigma_epsilon, t, L):
-    """
-    Calcula a capacidade calorífica.
-
-    Args:
-    - sigma_epsilon: Variância da energia
-    - t: Temperatura
-    - L: Tamanho da rede
-
-    Returns:
-    - C: Capacidade calorífica
-    """
     C = (sigma_epsilon**2) / (t**2 * L**2)
     return C
 
@@ -170,18 +122,6 @@ def simulacao_temp(temps, size, n_ciclos, h):
     return m, sus, e, c
 
 
-# # 1
-# def hysteresis_calc_varying_temp(temperatures, size, n_ciclos, h):
-#     magnetizations = np.array([])
-#     for temperature in temperatures:
-#         print("Temperatura:", temperature, "Campo magnético externo:", h, end="\r")
-#         rede, order, e = ferroSimul(size, n_ciclos, temperature, h)
-#         magnetizations = np.append(magnetizations, np.sum(order) / size)
-#     magnetizations /= size**2
-#     return magnetizations
-
-
-# 2
 def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values):
     magnetizations = np.array([])
     for h in h_values:
@@ -193,6 +133,7 @@ def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values):
 
 
 def calculate_curie_temperature(temps, m, sus, e, c):
+    file_name = "results2D.tsv"
     max_sus = max(sus)
     temps[sus == max_sus]
 
@@ -200,12 +141,11 @@ def calculate_curie_temperature(temps, m, sus, e, c):
     temps[c == max_c]
 
     output = np.array([temps, m, sus, e, c]).transpose()
-    np.savetxt("results2D.tsv", output, delimiter="\t")
+    np.savetxt(file_name, output, delimiter="\t")
 
-    print("Temperaturas salvas no arquivo results2D.tsv")
-    # print(f"Temperatura de Curie estimada: {temps[sus == max_sus][0]}")
     print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
 
+    moveFile(file_name)
 
 def calc_magnetism_for_mult_temps_varying_h(temperatures, mc_cycles, h_values, size):
     magnetizations = np.array([])
@@ -217,33 +157,36 @@ def calc_magnetism_for_mult_temps_varying_h(temperatures, mc_cycles, h_values, s
     return magnetizations
 
 
-# Functions to plot the order and energy graphs
 def plot_graphs(order, e):
     plt.plot(order)
-    plt.title("Order vs MC Cycles")
+    file_name = "ordem.svg"
+    plt.title("Order x MC Cycles")
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
     plt.plot(e)
-    plt.title("Energy vs MC Cycles")
+    file_name = "energia.svg"
+    plt.title("Energy x MC Cycles")
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
-# Functions to plot the graphs of m, χ, e and C
 def plot_ferro_graph(m, sus, e, c, temps):
     fig, axs = plt.subplots(2, 2)
     axs[0, 0].plot(temps, m)
     axs[0, 0].set_title("m vs t")
-    # plt.ticklabel_format(style="plain")
     axs[0, 1].plot(temps, sus)
     axs[0, 1].set_title("χ vs t")
-    # plt.ticklabel_format(style="plain")
     axs[1, 0].plot(temps, e)
     axs[1, 0].set_title("e vs t")
-    # plt.ticklabel_format(style="plain")
     axs[1, 1].plot(temps, c)
     axs[1, 1].set_title("C vs t")
-    # plt.ticklabel_format(style="plain")
     fig.tight_layout()
+    file_name = "propriedades.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
@@ -255,6 +198,9 @@ def plot_hysteresis(temperature, h_values, magnetizations):
     plt.ylabel("Magnetization (M)")
     plt.grid(True)
     plt.ticklabel_format(style="plain")
+    file_name = "histerese.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
@@ -272,6 +218,9 @@ def plot_magnetism_for_mult_temps(temperatures, h_values, magnetizations):
     ax.set_ylabel("Magnetization (M)")
     ax.legend()
     ax.grid(True)
+    file_name = "histerese para varias temperaturas.svg"
+    plt.savefig(file_name, dpi=1200)
+    moveFile(file_name)
     plt.show()
 
 
@@ -285,6 +234,23 @@ def timer(signal):
         )
         seconds += 1
         time.sleep(1)
+
+def moveFile(file_name):
+    file_location = os.getcwd()
+
+    script_location = os.path.abspath(__file__)
+    current_dir = os.path.dirname(script_location)
+    destination_dir = os.path.join(current_dir, "Plots e Resultados 2D")
+
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+
+    current_file = os.path.join(file_location, file_name)
+    destination_file = os.path.join(destination_dir, file_name)
+
+    shutil.move(current_file, destination_file)
+
+    print(f"Ficheiro {file_name} salvo em {destination_file}")
 
 
 t = 5.5

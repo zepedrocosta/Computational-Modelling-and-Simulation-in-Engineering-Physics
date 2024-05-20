@@ -364,12 +364,14 @@ def plot_graphs(order, e):
     """
     plt.plot(order)
     file_name = "ordem.svg"
+    plt.title("Order x MC Cycles")
     plt.savefig(file_name, dpi=1200)
     moveFile(file_name)
     plt.show()
 
     plt.plot(e)
     file_name = "energia.svg"
+    plt.title("Energy x MC Cycles")
     plt.savefig(file_name, dpi=1200)
     moveFile(file_name)
     plt.show()
