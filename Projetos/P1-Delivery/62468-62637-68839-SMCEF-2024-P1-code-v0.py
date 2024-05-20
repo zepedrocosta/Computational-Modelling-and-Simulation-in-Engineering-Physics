@@ -78,22 +78,22 @@ def ferroSimul(tamanho, nCiclos, temp, h, spin):
 
 
 def momento_magnetico_medio(M, L):
-    m = np.linalg.norm(M) / (L**2)
+    m = np.linalg.norm(M) / (L**3)
     return m
 
 
 def energia_media_por_ponto_de_rede(E, L):
-    epsilon = E / (L**2)
+    epsilon = E / (L**3)
     return epsilon
 
 
 def susceptibilidade_magnetica(sigma_M, t, L):
-    chi = ((sigma_M**2) / t) * (L**2)
+    chi = ((sigma_M**2) / t) * (L**3)
     return chi
 
 
 def capacidade_calorifica(sigma_epsilon, t, L):
-    C = (sigma_epsilon**2) / (t**2 * L**2)
+    C = (sigma_epsilon**2) / (t**2 * L**3)
     return C
 
 
