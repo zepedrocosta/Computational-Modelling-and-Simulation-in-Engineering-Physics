@@ -162,7 +162,7 @@ def calculate_average_magnetic_moment(M, L):
     Returns:
     - m: Momento magnético médio da rede com o fator de ordem
     """
-    m = np.linalg.norm(M) / (L**2)
+    m = np.linalg.norm(M) / (L**3)
     return m
 
 
@@ -171,13 +171,13 @@ def calculate_average_energy_per_network_point(E, L):
     Calcula a energia média por ponto de rede.
 
     Args:
-    - E: Energia média por ponto de rede
-    - L: Tamanho da rede
+    - E: Energia total
+    - L: Largura da rede
 
     Returns:
     - epsilon: Energia média por ponto de rede
     """
-    epsilon = E / (L**2)
+    epsilon = E / (L**3)
     return epsilon
 
 
@@ -193,7 +193,7 @@ def calculate_magnetic_susceptibility(sigma_M, t, L):
     Returns:
     - chi: Susceptibilidade magnética
     """
-    chi = ((sigma_M**2) / t) * (L**2)
+    chi = ((sigma_M**2) / t) * (L**3)
     return chi
 
 
@@ -209,7 +209,7 @@ def calculate_heat_capacity(sigma_epsilon, t, L):
     Returns:
     - C: Capacidade calorífica
     """
-    C = (sigma_epsilon**2) / (t**2 * L**2)
+    C = (sigma_epsilon**2) / (t**2 * L**3)
     return C
 
 
@@ -541,7 +541,7 @@ thread_timer.join()
 elapsed_time = end - start
 times = np.append(times, elapsed_time)
 print(
-    "Tempo de execução a fazer a calcular as propriedades:",
+    "Tempo de execução a calcular as propriedades:",
     elapsed_time / 60,
     "minutos",
 )
