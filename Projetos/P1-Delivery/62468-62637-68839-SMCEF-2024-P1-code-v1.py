@@ -336,7 +336,7 @@ def print_parameters(size, mc_cycles, temperature, h, spin):
     print(Fore.CYAN + f"Spin da rede: {spin}" + Fore.RESET)
 
 
-def plot_grid(grid):
+def plot_grid(grid, temperature):
     """
     Plota a rede em 3D.
 
@@ -347,9 +347,13 @@ def plot_grid(grid):
     ax = fig.add_subplot(111, projection="3d")
     x, y, z = np.where(grid == 1)
     ax.scatter(x, y, z, c="r", marker="o")
+    ax.set_title(f"Rede com spins a T = {temperature}")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.set_zlim(0, 10)
     file_name = "rede.svg"
     fig.savefig(file_name, dpi=1200)
     moveFile(file_name)
@@ -518,7 +522,7 @@ thread_timer.join()
 elapsed_time = end - start
 times = np.append(times, elapsed_time)
 print("Tempo de execução a fazer a simulação inicial: ", elapsed_time / 60, "minutos")
-plot_grid(grid)
+plot_grid(grid, temperature)
 plot_graphs(order, e)
 
 # Temperaturas para calcular as propriedades
