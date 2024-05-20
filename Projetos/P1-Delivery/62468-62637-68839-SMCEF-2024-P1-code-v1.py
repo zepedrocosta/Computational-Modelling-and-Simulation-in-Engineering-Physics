@@ -7,7 +7,7 @@ import shutil
 from colorama import Fore
 
 
-def transitionFunctionValues(t, h):
+def transition_function_values(t, h):
     """
     Calcula os valores da função de transição.
 
@@ -42,7 +42,7 @@ def w(sigma, sigSoma, valuesW):
     return valuesW[i, j]
 
 
-def vizinhosTabela(tamanho):
+def neighbours_table(size):
     """
     Cria uma tabela com os vizinhos.
 
@@ -52,15 +52,15 @@ def vizinhosTabela(tamanho):
     Returns:
     - vizinhos: Tabela com os vizinhos
     """
-    vizMais = [i + 1 for i in range(tamanho)]
-    vizMais[-1] = 0
-    vizMenos = [i - 1 for i in range(tamanho)]
+    vizPlus = [i + 1 for i in range(size)]
+    vizPlus[-1] = 0
+    vizMinus = [i - 1 for i in range(size)]
 
-    vizinhos = np.array([vizMais, vizMenos])
-    return vizinhos
+    neighbours = np.array([vizPlus, vizMinus])
+    return neighbours
 
 
-def inicializacao(tamanho, spin):
+def initialize_grid(size, spin):
     """
     Inicializa a rede.
 
@@ -72,13 +72,13 @@ def inicializacao(tamanho, spin):
     - rede: Rede com os spins
     """
     if spin == -1 or spin == 1:
-        rede = np.full((tamanho, tamanho, tamanho), spin, dtype="int")
+        rede = np.full((size, size, size), spin, dtype="int")
     else:
-        rede = np.random.choice([-1, 1], size=(tamanho, tamanho, tamanho))
+        rede = np.random.choice([-1, 1], size=(size, size, size))
     return rede
 
 
-def cicloFerro(rede, vizinhos, tamanho, valuesW, h):
+def ferromagnetic_cycle(grid, neighbours, size, valuesW, h):
     """
     Faz um ciclo de Monte Carlo para o ferromagnetismo em 3D.
 
@@ -93,32 +93,32 @@ def cicloFerro(rede, vizinhos, tamanho, valuesW, h):
     - e: Energia no ponto
     """
     e = 0
-    for x in range(tamanho):
-        for y in range(tamanho):
-            for z in range(tamanho):
-                sigma = rede[x, y, z]
+    for x in range(size):
+        for y in range(size):
+            for z in range(size):
+                sigma = grid[x, y, z]
                 soma = (
-                    rede[vizinhos[0, x], y, z]
-                    + rede[vizinhos[1, x], y, z]
-                    + rede[x, vizinhos[0, y], z]
-                    + rede[x, vizinhos[1, y], z]
-                    + rede[x, y, vizinhos[0, z]]
-                    + rede[x, y, vizinhos[1, z]]
+                    grid[neighbours[0, x], y, z]
+                    + grid[neighbours[1, x], y, z]
+                    + grid[x, neighbours[0, y], z]
+                    + grid[x, neighbours[1, y], z]
+                    + grid[x, y, neighbours[0, z]]
+                    + grid[x, y, neighbours[1, z]]
                 )
                 soma *= sigma
                 etmp = -0.5 * (soma - sigma * h)
                 p = np.random.random()
 
                 if p < w(sigma, soma, valuesW):
-                    rede[x, y, z] = -sigma
+                    grid[x, y, z] = -sigma
                     etmp = -etmp
 
                 e += etmp
 
-    return rede, e
+    return grid, e
 
 
-def ferroSimul(tamanho, nCiclos, temp, h, spin):
+def ferromagnetic_simulation(size, cycles, temperature, h, spin):
     """
     Simula o ferromagnetismo em 3D.
 
@@ -133,19 +133,19 @@ def ferroSimul(tamanho, nCiclos, temp, h, spin):
     - order: Fator de ordem
     - e: Energia
     """
-    rede = inicializacao(tamanho, spin)
-    vizinhos = vizinhosTabela(tamanho)
-    valuesW = transitionFunctionValues(temp, h)
-    order = np.zeros(nCiclos)
-    e = np.zeros(nCiclos)
+    rede = initialize_grid(size, spin)
+    vizinhos = neighbours_table(size)
+    valuesW = transition_function_values(temperature, h)
+    order = np.zeros(cycles)
+    e = np.zeros(cycles)
 
-    for i in range(nCiclos):
-        rede, eCiclo = cicloFerro(rede, vizinhos, tamanho, valuesW, h)
-        order[i] = 2 * rede[rede == 1].shape[0] - tamanho**3
+    for i in range(cycles):
+        rede, eCiclo = ferromagnetic_cycle(rede, vizinhos, size, valuesW, h)
+        order[i] = 2 * rede[rede == 1].shape[0] - size**3
         e[i] = eCiclo
 
-    order /= tamanho**3
-    e /= tamanho**3
+    order /= size**3
+    e /= size**3
     return rede, order, e
 
 
@@ -238,7 +238,7 @@ def temperatureSimulation(temps, size, n_ciclos, h, spin):
             t,
             end="\r",
         )
-        rede, order, e_ = ferroSimul(size, n_ciclos, t, h, spin)
+        rede, order, e_ = ferromagnetic_simulation(size, n_ciclos, t, h, spin)
         m[i] = calculate_average_magnetic_moment(order, size)
         sus[i] = calculate_magnetic_susceptibility(order.var(), t, size)
         e[i] = calculate_average_energy_per_network_point(e_.sum(), size)
@@ -246,7 +246,7 @@ def temperatureSimulation(temps, size, n_ciclos, h, spin):
     return m, sus, e, c
 
 
-def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values, spin):
+def hysteresis_calc_varying_h(temperature, size, cycles, h_values, spin):
     """
     Calcula a histerese variando o campo magnético externo.
 
@@ -269,13 +269,13 @@ def hysteresis_calc_varying_h(temperature, size, n_ciclos, h_values, spin):
             h,
             end="\r",
         )
-        rede, order, e = ferroSimul(size, n_ciclos, temperature, h, spin)
+        rede, order, e = ferromagnetic_simulation(size, cycles, temperature, h, spin)
         magnetizations = np.append(magnetizations, np.sum(order) / size)
     magnetizations /= size**2
     return magnetizations
 
 
-def calculate_curie_temperature(temps, m, sus, e, c):
+def calculate_curie_temperature(temperatures, m, sus, e, c):
     """
     Calcula a temperatura de Curie e salva as temperaturas e as propriedades em um ficheiro.
 
@@ -289,18 +289,23 @@ def calculate_curie_temperature(temps, m, sus, e, c):
     file_name = "results3D.tsv"
 
     max_sus = max(sus)
-    temps[sus == max_sus]
+    temperatures[sus == max_sus]
 
     max_c = max(c)
-    temps[c == max_c]
+    temperatures[c == max_c]
 
-    output = np.array([temps, m, sus, e, c]).transpose()
+    output = np.array([temperatures, m, sus, e, c]).transpose()
     np.savetxt(file_name, output, delimiter="\t")
 
+    print(
+        Fore.BLUE
+        + f"Temperatura de Curie estimada a partir da suscetibilidade magnética: {temperatures[sus == max_sus][0]}"
+    )
+    print(
+        f"Temperatura de Curie estimada a partir da capacidade calorífica: {temperatures[c == max_c][0]}"
+        + Fore.RESET
+    )
     moveFile(file_name)
-
-    print("Temperaturas salvas no arquivo", file_name)
-    print(f"Temperatura de Curie estimada: {temps[c == max_c][0]}")
 
 
 def calc_magnetism_for_mult_temps(temperatures, mc_cycles, h_values, size, spin):
@@ -325,7 +330,25 @@ def calc_magnetism_for_mult_temps(temperatures, mc_cycles, h_values, size, spin)
     return magnetizations
 
 
-def plot_grid(rede):
+def print_parameters(size, mc_cycles, temperature, h, spin):
+    """
+    Imprime os parâmetros da simulação na consola.
+
+    Args:
+    size: Tamanho da rede
+    mc_cycles: Número de ciclos de Monte Carlo
+    temperature: Temperatura
+    h: Campo magnético externo
+    spin: Spin da rede
+    """
+    print(Fore.CYAN + f"Tamanho da rede: {size}" + Fore.RESET)
+    print(Fore.GREEN + f"Ciclos de Monte Carlo: {mc_cycles}" + Fore.RESET)
+    print(Fore.CYAN + f"Temperatura: {temperature}" + Fore.RESET)
+    print(Fore.GREEN + f"Campo mangnético externo: {h}" + Fore.RESET)
+    print(Fore.CYAN + f"Spin da rede: {spin}" + Fore.RESET)
+
+
+def plot_grid(grid):
     """
     Plota a rede em 3D.
 
@@ -334,7 +357,7 @@ def plot_grid(rede):
     """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    x, y, z = np.where(rede == 1)
+    x, y, z = np.where(grid == 1)
     ax.scatter(x, y, z, c="r", marker="o")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -464,7 +487,7 @@ def moveFile(file_name):
 
     shutil.move(current_file, destination_file)
 
-    print(Fore.GREEN + f"Plot {file_name} salvo em {destination_file}" + Fore.RESET)
+    print(Fore.GREEN + f"Ficheiro {file_name} salvo em {destination_file}" + Fore.RESET)
 
 
 def timer(signal):
@@ -489,21 +512,23 @@ spin = -1
 temperature = 5.5
 h = 0.0
 size = 10
-mc_cicles = 10000
+mc_cycles = 10000
 times = np.array([])
+
+print_parameters(size, mc_cycles, temperature, h, spin)
 
 signal = threading.Event()
 thread_timer = threading.Thread(target=timer, args=(signal,))
 thread_timer.start()
 start = time.time()
-rede, order, e = ferroSimul(size, mc_cicles, temperature, h, spin)
+grid, order, e = ferromagnetic_simulation(size, mc_cycles, temperature, h, spin)
 end = time.time()
 signal.set()
 thread_timer.join()
 elapsed_time = end - start
 times = np.append(times, elapsed_time)
 print("Tempo de execução a fazer a simulação inicial: ", elapsed_time / 60, "minutos")
-plot_grid(rede)
+plot_grid(grid)
 plot_graphs(order, e)
 
 # Temperaturas para calcular as propriedades
@@ -514,7 +539,7 @@ thread_timer = threading.Thread(target=timer, args=(signal,))
 thread_timer.start()
 start = time.time()
 m, sus, e, c = temperatureSimulation(
-    temperatures, size, (int)(mc_cicles * 0.1), h, spin
+    temperatures, size, (int)(mc_cycles * 0.1), h, spin
 )
 end = time.time()
 signal.set()
@@ -534,6 +559,7 @@ calculate_curie_temperature(temperatures, m, sus, e, c)
 h_max = 5
 h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
+# Temperaturas para calcular o magnetismo para múltiplas temperaturas variando o campo magnético externo
 magnetizationsTemperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
 
 signal = threading.Event()
@@ -541,7 +567,7 @@ thread_timer = threading.Thread(target=timer, args=(signal,))
 thread_timer.start()
 start = time.time()
 magnetizations = hysteresis_calc_varying_h(
-    temperature, size, (int)(mc_cicles * 0.1), h_values, spin
+    temperature, size, (int)(mc_cycles * 0.1), h_values, spin
 )
 end = time.time()
 signal.set()
@@ -556,7 +582,7 @@ thread_timer = threading.Thread(target=timer, args=(signal,))
 thread_timer.start()
 start = time.time()
 magnetism_for_mult_temps = calc_magnetism_for_mult_temps(
-    magnetizationsTemperatures, (int)(mc_cicles * 0.1), h_values, size, spin
+    magnetizationsTemperatures, (int)(mc_cycles * 0.1), h_values, size, spin
 )
 end = time.time()
 signal.set()
@@ -572,4 +598,8 @@ plot_magnetism_for_mult_temps(
     magnetizationsTemperatures, h_values, magnetism_for_mult_temps
 )
 
-print(Fore.MAGENTA + "Tempo total de execução:", np.sum(times) / 60, "minutos" + Fore.RESET)
+print(
+    Fore.MAGENTA + "Tempo total de execução:",
+    np.sum(times) / 60,
+    "minutos" + Fore.RESET,
+)
