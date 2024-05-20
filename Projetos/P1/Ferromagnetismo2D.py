@@ -290,7 +290,7 @@ plot_ferro_graph(m, sus, e, c, temperatures)
 calculate_curie_temperature(temperatures, m, sus, e, c)
 
 # h values
-h_max = 4  # Maximum strength of magnetic field
+h_max = 5  # Maximum strength of magnetic field
 h_values = np.linspace(-h_max, h_max, (h_max * 2) + 1)
 
 magnetizationsTemperatures = np.array([0.5, 2.4, 2.5, 2.6, 4.5])
