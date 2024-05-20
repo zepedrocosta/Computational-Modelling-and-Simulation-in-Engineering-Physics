@@ -6,6 +6,13 @@ import os
 import shutil
 from colorama import Fore
 
+"""
+SMCEF - 2024 - P1 - Ferromagnetismo em 3D
+@author: Alexandre Tashchuk | 62568
+@author: José Pedro Pires Costa | 62637
+@author: Carolina dos Santos Saraiva | 68839
+"""
+
 
 def transition_function_values(t, h):
     """

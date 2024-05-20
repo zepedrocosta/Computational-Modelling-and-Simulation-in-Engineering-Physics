@@ -1,6 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+"""
+SMCEF - 2024 - P1 - Ferromagnetismo em 3D
+@author: Alexandre Tashchuk | 62568
+@author: José Pedro Pires Costa | 62637
+@author: Carolina dos Santos Saraiva | 68839
+"""
+
 
 def transitionFunctionValues(t, h):
     deltaE = [[j + i * h for i in range(-1, 3, 2)] for j in range(-6, 8, 2)]
@@ -150,6 +157,9 @@ def plot_grid(rede):
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.set_zlim(0, 10)
     plt.show()
 
 
