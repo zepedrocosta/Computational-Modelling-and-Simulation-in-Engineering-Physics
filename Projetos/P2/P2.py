@@ -87,6 +87,7 @@ def forward_simulation(v0, alpha, method='exponential'):
     parachute_deployed = False
     
     while altitude > 0:
+        print(altitude)
         rho = get_air_density(altitude, method)
         g = gravity_acceleration(altitude)
         
