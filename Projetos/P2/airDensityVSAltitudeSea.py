@@ -104,12 +104,15 @@ def get_exponential_fit(altitude, density):
     params, _ = curve_fit(exponential_model, altitude_norm, density, p0=initial_guess)
     A, B = params
 
-    fit_altitude_norm = np.linspace(min(altitude_norm), max(altitude_norm), 500)
+    # Extend the fit_altitude range to 150000 meters
+    fit_altitude_range = 150000
+    fit_altitude_norm = np.linspace(min(altitude_norm), fit_altitude_range / np.max(altitude), 500)
     fit_density = exponential_model(fit_altitude_norm, A, B)
 
     fit_altitude = fit_altitude_norm * np.max(altitude)
 
     return fit_altitude, fit_density
+
 
 
 """
@@ -172,14 +175,11 @@ density : numpy array
 def plot_data_and_cubic_spline_fit(altitude, density, altitude_fine, density_fine):
     plt.figure(figsize=(10, 8))
     plt.plot(altitude, density, "bo", label="data")
-
     plt.plot(altitude_fine, density_fine, "g-", label="cubic spline")
-
     plt.xlabel("Altitude (m)")
     plt.ylabel("Density (kg m$^{-3}$)")
     plt.legend()
     plt.title("Air density vs altitude above sea level - data and cubic spline")
-
     plt.show()
 
 def plot_data_expontential_fit_cubic_spline_fit(altitude, density, fit_altitude, fit_density, altitude_fine, density_fine):
