@@ -2,7 +2,7 @@
 
 The project involves modeling the reentry of a space module into the Earth's atmosphere, simulating various reentry parameters, and determining the optimal parameters to ensure a safe reentry. The project should include both forward and backward simulation methods, with a comparison of results and code optimization.
 
-### Tasks and Objectives
+## Tasks and Objectives
 
 1. **Model Implementation:**
    - Use the given empirical law for air resistance:
@@ -28,11 +28,11 @@ The project involves modeling the reentry of a space module into the Earth's atm
 
 ### Steps to Proceed
 
-#### Step 1: Implement the Air Density Models
+#### Step 1: Implement the Air Density Models DONE
 
 You need to implement two methods to estimate air density:
 
-1. **Exponential Fit: DONE**
+1. **Exponential Fit:**
    - Fit an exponential function to the given data points.
    - Use `scipy.optimize.curve_fit` to obtain the parameters for the exponential function.
 
