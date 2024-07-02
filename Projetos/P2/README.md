@@ -54,7 +54,7 @@ Use an implicit method like the Backward Euler or Trapezoid method:
 - Implement the backward method to solve the equations of motion.
 - Compare the results with the forward simulation.
 
-#### Step 4: Generate Results and Create Report~
+#### Step 4: Generate Results and Create Report
 
 - Plot the reentry trajectories and compare the results of forward and backward methods.
 - Document the methodology, results, and analysis in a report.
