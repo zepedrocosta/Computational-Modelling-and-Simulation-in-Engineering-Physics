@@ -132,7 +132,7 @@ def air_density(altitude, filename):
     return np.interp(altitude, fit_altitude, fit_density)
 
 
-def drag_force(v, altitude, filename):
+def drag_force(v, altitude, cd, A, filename):
     """
     Calculate the drag force
 
@@ -154,10 +154,21 @@ def drag_force(v, altitude, filename):
     return -0.5 * Cd * A * rho * v**2
 
 
-def simulation_without_parachute(vx, vy, x, y, filename):
+def simulation_without_parachute(vx, vy, x, y, Cd, A, Cdp, Ap, filename):
+    time = 0
+    positions = [(x, y)]
+    velocities = [(vx, vy)]
+    drag_coefficient = Cd
+    area = A
+    parachute = False
     for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
-        Fd = drag_force(v, y, filename)
+        if(y <= 1000 and not parachute and v <= 100):
+            print(Fore.BLUE + "Deploying parachute" + Fore.RESET)
+            drag_coefficient = Cdp
+            area = Ap
+            parachute = True
+        Fd = drag_force(v, y, drag_coefficient, area, filename)
         ax = Fd * vx / (m * v)
         ay = -g + (Fd * vy / (m * v))
 
@@ -169,11 +180,12 @@ def simulation_without_parachute(vx, vy, x, y, filename):
         positions.append((x, y))
         velocities.append((vx, vy))
 
+        time += dt
+
         if y <= 0:
             break
-    # Output results
-    print("Final position:", positions[-1])
-    print("Final velocity:", velocities[-1])
+
+    return positions, velocities, time
 
 
 def calculate_horizontal_distance(x, y):
@@ -204,9 +216,70 @@ def calculate_horizontal_distance(x, y):
 
     distance = R_earth * theta
 
-    print(Fore.YELLOW + f"Horizontal distance: {distance} km" + Fore.RESET)
+    if distance <= 2500 or distance >= 4500:
+        print(Fore.RED + f"Horizontal distance: {distance} km" + Fore.RESET)
+    else:
+        print(Fore.GREEN + f"Horizontal distance: {distance} km" + Fore.RESET)
 
     return distance
+
+
+def calculate_g_value(vertical_acceleration, horizontal_acceleration):
+    """
+    Calculate the total acceleration and the g value.
+
+    Parameters
+    ----------
+    vertical_acceleration : float
+        The vertical acceleration
+    horizontal_acceleration : float
+        The horizontal acceleration
+
+    Returns
+    -------
+    total_acceleration : float
+        The total acceleration
+    g_value : float
+        The g value
+    """
+    total_acceleration = math.sqrt(
+        vertical_acceleration**2 + horizontal_acceleration**2
+    )
+
+    # Calculate g value
+    g_value = total_acceleration / g
+
+    if g_value >= 15:
+        print(Fore.RED + f"g value: {g_value}" + Fore.RESET)
+    else:
+        print(Fore.GREEN + f"g value: {g_value}" + Fore.RESET)
+
+    return total_acceleration, g_value
+
+
+def calculate_final_velocity(vx, vy):
+    """
+    Calculate the final velocity of the object.
+
+    Parameters
+    ----------
+    vx : float
+        The horizontal velocity
+    vy : float
+        The vertical velocity
+
+    Returns
+    -------
+    final_velocity : float
+        The final velocity of the object
+    """
+    final_velocity = math.sqrt(vx**2 + vy**2)
+
+    if final_velocity >= 25:
+        print(Fore.RED + f"Final velocity: {final_velocity} m/s" + Fore.RESET)
+    else:
+        print(Fore.GREEN + f"Final velocity: {final_velocity} m/s" + Fore.RESET)
+    return final_velocity
 
 
 def plot_trajectory(x_forward, y_forward, x_backward, y_backward):
@@ -230,23 +303,21 @@ m = 12000  # mass of the module (kg)
 dt = 0.1  # time step (s)
 x = 0.0  # horizontal position (m)
 y = 130000.0  # altitude (m)
+Cdp = 1.0 # drag coefficient of the parachute
+Ap = 301.0 # cross-sectional area of the parachute (m^2)
 
 
 filename = "Projetos/P2/airdensity - students.txt"
 
 # Initial conditions
 v0 = 15000  # Initial velocity in m/s
-alpha = 15  # downward angle with the horizontal in degrees
+alpha = 7  # downward angle with the horizontal in degrees
 
 print_parameters(v0, alpha)
 
 vx, vy = calc_v0_components(v0, alpha)
 
-# Lists to store the results
-positions = [(x, y)]
-velocities = [(vx, vy)]
-
-simulation_without_parachute(vx, vy, x, y, filename)
+positions, velocities, time = simulation_without_parachute(vx, vy, x, y, Cd, A, Cdp, Ap, filename)
 
 x_forward, y_forward = zip(*positions)
 # x_backward, y_backward = zip(*positions_backward)
@@ -258,6 +329,14 @@ y_forward_km = [altitude / 1000 for altitude in y_forward]
 
 # Calculate the horizontal distance
 h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km)
+
+# Calculate the total acceleration and the g value
+total_acceleration, g_value = calculate_g_value(
+    velocities[-1][1] / time, velocities[-1][0] / time
+)
+
+# Calculate the final velocity
+final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1])
 
 # Plot the trajectory
 plot_trajectory(x_forward_km, y_forward_km, None, None)
