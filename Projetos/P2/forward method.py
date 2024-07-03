@@ -12,6 +12,11 @@ SMCEF - 2024 - P2 - Reentry of a Space Capsule
 """
 
 
+def print_parameters(v0, alpha):
+    print(Fore.CYAN + f"Velocidade inicial: {v0} m/s" + Fore.RESET)
+    print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
+
+
 def calc_v0_components(v0, alpha):
     # Convert angle to radians
     alphaRad = math.radians(alpha)
@@ -171,20 +176,43 @@ def simulation_without_parachute(vx, vy, x, y, filename):
     print("Final velocity:", velocities[-1])
 
 
-def print_parameters(v0, alpha):
-    print(Fore.CYAN + f"Velocidade inicial: {v0} m/s" + Fore.RESET)
-    print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
+def calculate_horizontal_distance(x, y):
+    """
+    Calculate the horizontal distance projected on the Earth's surface.
+
+    Parameters
+    ----------
+    x : list
+        The x values of the trajectory
+    y : list
+        The y values of the trajectory
+    R_earth : float
+        The radius of the Earth in kilometers
+
+    Returns
+    -------
+    distance : float
+        The horizontal distance projected on the Earth's surface
+    """
+    R_earth = 6371
+    theta = 0
+    n = len(x)
+
+    for i in range(1, n):
+        theta_i = (x[i] - x[i - 1]) / (R_earth + y[i])
+        theta += theta_i
+
+    distance = R_earth * theta
+
+    print(Fore.YELLOW + f"Horizontal distance: {distance} km" + Fore.RESET)
+
+    return distance
 
 
 def plot_trajectory(x_forward, y_forward, x_backward, y_backward):
-    # Convert altitude from meters to kilometers
-    x_forward_km = [distance / 1000 for distance in x_forward]
-    y_forward_km = [altitude / 1000 for altitude in y_forward]
-    # y_backward_km = [altitude / 1000 for altitude in y_backward]
-
     # Plot trajectories
     plt.figure()
-    plt.plot(x_forward_km, y_forward_km, label="Forward Method")
+    plt.plot(x_forward, y_forward, label="Forward Method")
     # plt.plot(x_backward, y_backward_km, label="Backward Method")
     plt.xlabel("Horizontal Distance (km)")
     plt.ylabel("Altitude (km)")
@@ -223,4 +251,13 @@ simulation_without_parachute(vx, vy, x, y, filename)
 x_forward, y_forward = zip(*positions)
 # x_backward, y_backward = zip(*positions_backward)
 
-plot_trajectory(x_forward, y_forward, None, None)
+# Convert altitude from meters to kilometers
+x_forward_km = [distance / 1000 for distance in x_forward]
+y_forward_km = [altitude / 1000 for altitude in y_forward]
+# y_backward_km = [altitude / 1000 for altitude in y_backward]
+
+# Calculate the horizontal distance
+h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km)
+
+# Plot the trajectory
+plot_trajectory(x_forward_km, y_forward_km, None, None)
