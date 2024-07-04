@@ -150,7 +150,8 @@ def air_density(altitude, filename):
     float
         The air density at the given altitude
     """
-    altitudeArray, densityArray = get_info_from_file(filename)
+    altitudeArray = np.array([-1000, 0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000])
+    densityArray = np.array([1.347, 1.225, 1.112, 1.007, 0.9093, 0.8194, 0.7364, 0.6601, 0.59, 0.5258, 0.4671, 0.4135, 0.1948, 0.08891, 0.04008, 0.01841, 0.003996, 0.001027, 0.0003097, 0.00008283, 0.00001846])
     fit_altitude, fit_density = get_exponential_fit(altitudeArray, densityArray)
     density = np.interp(altitude, fit_altitude, fit_density)
     return density
@@ -259,32 +260,19 @@ def calculate_horizontal_distance(x, y):
     return distance
 
 
-def calculate_g_value(final_velocity, v0, time):
-    """
-    Calculate the total acceleration and the g value.
+def calculate_g_value(velocities, time):
+    total_acceleration = 0
+    for i in range(len(velocities) - 1):
+        delta_vx = velocities[i + 1][0] - velocities[i][0]
+        delta_vy = velocities[i + 1][1] - velocities[i][1]
 
-    Parameters
-    ----------
-    vertical_acceleration : float
-        The vertical acceleration
-    horizontal_acceleration : float
-        The horizontal acceleration
+        delta_v = math.sqrt(delta_vx**2 + delta_vy**2)
 
-    Returns
-    -------
-    total_acceleration : float
-        The total acceleration
-    g_value : float
-        The g value
-    """
-    v0y = v0 * math.sin(math.radians(0))
+        total_acceleration += delta_v
 
+    total_acceleration /= time
 
-    delta_v = final_velocity - v0
-
-    total_acceleration = delta_v / time
-
-    g_value = (total_acceleration - g) / g
+    g_value = total_acceleration / g
 
     if g_value >= 15:
         print(Fore.RED + f"valor de g: {g_value}" + Fore.RESET)
@@ -364,7 +352,7 @@ def run_simulation(v0, alpha, mode):
     final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1])
 
     # Calculate the total acceleration and the g value
-    total_acceleration, g_value = calculate_g_value(final_velocity, v0, time)
+    total_acceleration, g_value = calculate_g_value(velocities, time)
 
 
     if (
