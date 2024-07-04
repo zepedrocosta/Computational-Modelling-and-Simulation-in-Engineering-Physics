@@ -152,7 +152,8 @@ def air_density(altitude, filename):
     """
     altitudeArray, densityArray = get_info_from_file(filename)
     fit_altitude, fit_density = get_exponential_fit(altitudeArray, densityArray)
-    return np.interp(altitude, fit_altitude, fit_density)
+    density = np.interp(altitude, fit_altitude, fit_density)
+    return density
 
 
 def drag_force(v, altitude, cd, A, filename):
@@ -222,7 +223,8 @@ def simulation_without_parachute(vx, vy, x, y, Cd, A, Cdp, Ap, filename):
 
         if y <= 0:
             break
-    print(Fore.CYAN + f"Time of flight: {time} s" + Fore.RESET)
+        
+    print(Fore.CYAN + f"Tempo de voo: {time} s" + Fore.RESET)
 
     return positions, velocities, time
 
@@ -361,9 +363,18 @@ def run_simulation(v0, alpha, mode):
     # Calculate the final velocity
     final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1])
 
-    # Plot the trajectory if the mode is manual
-    if mode == "manual":
+    if mode == "manual" or mode == "fast":
         plot_trajectory(x_forward_km, y_forward_km, None, None)
+
+
+def check_parameters(v0, alpha, mode):
+    if mode == "manual":
+        if not v0.isdigit() or not alpha.isdigit():
+            print(Fore.RED + "Valores inválidos!!" + Fore.RESET + "\n")
+            exit(1)
+    if int(alpha) > 15 or int(alpha) < 0 and int(v0) < 0 or int(v0) > 15000:
+        print(Fore.RED + "Valores inválidos!!" + Fore.RESET + "\n")
+        exit(1)
 
 
 def run_automatic(mode):
@@ -379,8 +390,11 @@ def run_automatic(mode):
 
 
 def main():
-    print(Fore.MAGENTA + "Simulação de reentrada do modulo espacial - SMCEF 23/24")
-    print("=======================================================")
+    print(
+        Fore.MAGENTA
+        + "Simulação de reentrada do modulo espacial - SMCEF 23/24 - P2 - FCT-UNL"
+    )
+    print("======================================================================")
     print("Insira o modo de simulação:")
     print(Fore.BLUE + "1 - Automático:")
     print(
@@ -388,7 +402,13 @@ def main():
     )
     print(Fore.GREEN + "2 - Manual")
     print("Este modo solicitará os valores de v0 e alpha.")
-    user_input = input(Fore.YELLOW + "Por favor insira o modo (1/2): " + Fore.RESET)
+    print(Fore.BLUE + "3 - Rápido")
+    print(
+        "Este modo executará a simulação com os valores de v0 e alpha fornecidos no código."
+    )
+    user_input = input(
+        "\n" + Fore.YELLOW + "Por favor insira o modo (1/2/3): " + Fore.RESET
+    )
 
     if user_input == "1":
         mode = "automatic"
@@ -404,14 +424,19 @@ def main():
         alpha = input(
             Fore.GREEN + "Por favor insira ângulo de entrada (graus): " + Fore.RESET
         )
-
-        if(not v0.isdigit() or not alpha.isdigit() and int(alpha) > 15 or int(alpha) < 0 and int(v0) < 0 or int(v0) > 15000):
-            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
-            exit(1)
-            
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
+        check_parameters(v0, alpha, mode)
         print_parameters(int(v0), int(alpha))
         run_simulation(int(v0), int(alpha), mode)
+    elif user_input == "3":
+        mode = "fast"
+        print(Fore.MAGENTA + "Modo rápido selecionado.")
+        print("Correndo a simulação..." + Fore.RESET + "\n")
+        v0 = 15000
+        alpha = 0
+        check_parameters(v0, alpha, mode)
+        print_parameters(int(v0), int(alpha))
+        run_simulation(v0, alpha, mode)
     else:
         print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
         exit(1)
