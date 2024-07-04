@@ -11,14 +11,37 @@ SMCEF - 2024 - P2 - Reentry of a Space Capsule
 @author: Carolina dos Santos Saraiva | 68839
 """
 
-
-def print_parameters(v0, alpha):
-    print(Fore.CYAN + f"Velocidade inicial: {v0} m/s" + Fore.RESET)
-    print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
+# Constants
+g = 10  # gravitational acceleration (m/s^2)
+Cd = 1.2  # drag coefficient
+Cl = 1.0  # lift coefficient
+A = 4 * np.pi  # cross-sectional area (m^2)
+m = 12000  # mass of the module (kg)
+dt = 0.1  # time step (s)
+x = 0.0  # horizontal position (m)
+y = 130000.0  # altitude (m)
+Cdp = 1.0  # drag coefficient of the parachute
+Ap = 301.0  # cross-sectional area of the parachute (m^2)
 
 
 def calc_v0_components(v0, alpha):
-    # Convert angle to radians
+    """
+    Calculate the initial horizontal and vertical velocities
+
+    Parameters
+    ----------
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizontal
+
+    Returns
+    -------
+    vx : float
+        The initial horizontal velocity
+    vy : float
+        The initial vertical velocity
+    """
     alphaRad = math.radians(alpha)
 
     vx = v0 * math.cos(alphaRad)  # Initial horizontal velocity
@@ -154,6 +177,21 @@ def drag_force(v, altitude, cd, A, filename):
     return -0.5 * Cd * A * rho * v**2
 
 
+def print_parameters(v0, alpha):
+    """
+    Print the initial parameters
+
+    Parameters
+    ----------
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizontal
+    """
+    print(Fore.CYAN + f"Velocidade inicial: {v0} m/s" + Fore.RESET)
+    print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
+
+
 def simulation_without_parachute(vx, vy, x, y, Cd, A, Cdp, Ap, filename):
     time = 0
     positions = [(x, y)]
@@ -163,8 +201,8 @@ def simulation_without_parachute(vx, vy, x, y, Cd, A, Cdp, Ap, filename):
     parachute = False
     for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
-        if(y <= 1000 and not parachute and v <= 100):
-            print(Fore.BLUE + "Deploying parachute" + Fore.RESET)
+        if y <= 1000 and v <= 100 and not parachute:
+            print(Fore.MAGENTA + "Deploying parachute" + Fore.RESET + "\n")
             drag_coefficient = Cdp
             area = Ap
             parachute = True
@@ -184,6 +222,7 @@ def simulation_without_parachute(vx, vy, x, y, Cd, A, Cdp, Ap, filename):
 
         if y <= 0:
             break
+    print(Fore.CYAN + f"Time of flight: {time} s" + Fore.RESET)
 
     return positions, velocities, time
 
@@ -294,49 +333,89 @@ def plot_trajectory(x_forward, y_forward, x_backward, y_backward):
     plt.show()
 
 
-# Constants
-g = 10  # gravitational acceleration (m/s^2)
-Cd = 1.2  # drag coefficient
-Cl = 1.0  # lift coefficient
-A = 4 * np.pi  # cross-sectional area (m^2)
-m = 12000  # mass of the module (kg)
-dt = 0.1  # time step (s)
-x = 0.0  # horizontal position (m)
-y = 130000.0  # altitude (m)
-Cdp = 1.0 # drag coefficient of the parachute
-Ap = 301.0 # cross-sectional area of the parachute (m^2)
+def run_simulation(v0, alpha, mode):
+    filename = "Projetos/P2/airdensity - students.txt"
+
+    vx, vy = calc_v0_components(v0, alpha)
+
+    positions, velocities, time = simulation_without_parachute(
+        vx, vy, x, y, Cd, A, Cdp, Ap, filename
+    )
+
+    x_forward, y_forward = zip(*positions)
+    # x_backward, y_backward = zip(*positions_backward)
+
+    # Convert altitude from meters to kilometers
+    x_forward_km = [distance / 1000 for distance in x_forward]
+    y_forward_km = [altitude / 1000 for altitude in y_forward]
+    # x_backward_km = [distance / 1000 for distance in x_backward]
+    # y_backward_km = [altitude / 1000 for altitude in y_backward]
+
+    # Calculate the horizontal distance
+    h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km)
+
+    # Calculate the total acceleration and the g value
+    total_acceleration, g_value = calculate_g_value(
+        velocities[-1][1] / time, velocities[-1][0] / time
+    )
+    # Calculate the final velocity
+    final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1])
+
+    # Plot the trajectory if the mode is manual
+    if mode == "manual":
+        plot_trajectory(x_forward_km, y_forward_km, None, None)
 
 
-filename = "Projetos/P2/airdensity - students.txt"
+def run_automatic(mode):
+    v0_range = list(range(1, 15001, 100))  # Initial velocity range in m/s
+    alpha_range = list(range(16))  # Initial angle range in degrees
 
-# Initial conditions
-v0 = 15000  # Initial velocity in m/s
-alpha = 7  # downward angle with the horizontal in degrees
+    for v0 in v0_range:
+        for alpha in alpha_range:
+            # Initial conditions
+            v0 = int(v0)  # Initial velocity in m/s
+            alpha = int(alpha)  # downward angle with the horizontal in degrees
+            run_simulation(v0, alpha, mode)
 
-print_parameters(v0, alpha)
 
-vx, vy = calc_v0_components(v0, alpha)
+def main():
+    print(Fore.MAGENTA + "Simulação de reentrada do modulo espacial - SMCEF 23/24")
+    print("=======================================================")
+    print("Insira o modo de simulação:")
+    print(Fore.BLUE + "1 - Automático:")
+    print(
+        "Este modo executará todos os valores para v0 entre 0 e 15000 m/s e todos os valores para alpha entre 0 e 15 graus."
+    )
+    print(Fore.GREEN + "2 - Manual")
+    print("Este modo solicitará os valores de v0 e alpha.")
+    user_input = input(Fore.YELLOW + "Por favor insira o modo (1/2): " + Fore.RESET)
 
-positions, velocities, time = simulation_without_parachute(vx, vy, x, y, Cd, A, Cdp, Ap, filename)
+    if user_input == "1":
+        mode = "automatic"
+        print(Fore.MAGENTA + "Modo automático selecionado.")
+        print("Correndo a simulação..." + Fore.RESET + "\n")
+        run_automatic(mode)
+    elif user_input == "2":
+        mode = "manual"
+        print(Fore.MAGENTA + "Modo manual selecionado.")
+        v0 = input(
+            Fore.CYAN + "Por favor insira a velocidade inicial (m/s): " + Fore.RESET
+        )
+        alpha = input(
+            Fore.GREEN + "Por favor insira ângulo de entrada (graus): " + Fore.RESET
+        )
 
-x_forward, y_forward = zip(*positions)
-# x_backward, y_backward = zip(*positions_backward)
+        if(not v0.isdigit() or not alpha.isdigit() and int(alpha) > 15 or int(alpha) < 0 and int(v0) < 0 or int(v0) > 15000):
+            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
+            exit(1)
+            
+        print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
+        print_parameters(int(v0), int(alpha))
+        run_simulation(int(v0), int(alpha), mode)
+    else:
+        print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
+        exit(1)
 
-# Convert altitude from meters to kilometers
-x_forward_km = [distance / 1000 for distance in x_forward]
-y_forward_km = [altitude / 1000 for altitude in y_forward]
-# y_backward_km = [altitude / 1000 for altitude in y_backward]
 
-# Calculate the horizontal distance
-h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km)
-
-# Calculate the total acceleration and the g value
-total_acceleration, g_value = calculate_g_value(
-    velocities[-1][1] / time, velocities[-1][0] / time
-)
-
-# Calculate the final velocity
-final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1])
-
-# Plot the trajectory
-plot_trajectory(x_forward_km, y_forward_km, None, None)
+if __name__ == "__main__":
+    main()
