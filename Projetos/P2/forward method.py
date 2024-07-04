@@ -150,8 +150,56 @@ def air_density(altitude, filename):
     float
         The air density at the given altitude
     """
-    altitudeArray = np.array([-1000, 0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 80000])
-    densityArray = np.array([1.347, 1.225, 1.112, 1.007, 0.9093, 0.8194, 0.7364, 0.6601, 0.59, 0.5258, 0.4671, 0.4135, 0.1948, 0.08891, 0.04008, 0.01841, 0.003996, 0.001027, 0.0003097, 0.00008283, 0.00001846])
+    altitudeArray = np.array(
+        [
+            -1000,
+            0,
+            1000,
+            2000,
+            3000,
+            4000,
+            5000,
+            6000,
+            7000,
+            8000,
+            9000,
+            10000,
+            15000,
+            20000,
+            25000,
+            30000,
+            40000,
+            50000,
+            60000,
+            70000,
+            80000,
+        ]
+    )
+    densityArray = np.array(
+        [
+            1.347,
+            1.225,
+            1.112,
+            1.007,
+            0.9093,
+            0.8194,
+            0.7364,
+            0.6601,
+            0.59,
+            0.5258,
+            0.4671,
+            0.4135,
+            0.1948,
+            0.08891,
+            0.04008,
+            0.01841,
+            0.003996,
+            0.001027,
+            0.0003097,
+            0.00008283,
+            0.00001846,
+        ]
+    )
     fit_altitude, fit_density = get_exponential_fit(altitudeArray, densityArray)
     density = np.interp(altitude, fit_altitude, fit_density)
     return density
@@ -180,7 +228,7 @@ def print_parameters(v0, alpha):
     print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
 
 
-def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename):
+def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
@@ -191,12 +239,15 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename):
     for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
         rho = air_density(y, filename)
+        
         if y <= 1000 and v <= 100 and not parachute:
-            print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n")
+            if(mode == "manual" or mode == "fast"):
+                print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n")
             deploy_position = (x, y)
             drag_coefficient += Cdp
-            area = Ap
+            area += Ap
             parachute = True
+
         Fd = drag_force(v, rho, drag_coefficient, area)
         Fl = lift_force(v, rho, Cl, area)
 
@@ -219,12 +270,13 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename):
         if y <= 0:
             break
 
-    print(Fore.CYAN + f"Tempo de reentrada: {time} s" + "\n" + Fore.RESET)
+    if(mode == "manual" or mode == "fast"):
+        print(Fore.CYAN + f"Tempo de reentrada: {time} s" + "\n" + Fore.RESET)
 
     return positions, velocities, time, deploy_position
 
 
-def calculate_horizontal_distance(x, y):
+def calculate_horizontal_distance(x, y, mode):
     """
     Calculate the horizontal distance projected on the Earth's surface.
 
@@ -252,15 +304,16 @@ def calculate_horizontal_distance(x, y):
 
     distance = R_earth * theta
 
-    if distance <= 2500 or distance >= 4500:
-        print(Fore.RED + f"Distância horizontal: {distance} km" + Fore.RESET)
-    else:
-        print(Fore.GREEN + f"Distância horizontal: {distance} km" + Fore.RESET)
+    if(mode == "manual" or mode == "fast"):
+        if distance <= 2500 or distance >= 4500:
+            print(Fore.RED + f"Distância horizontal: {distance} km" + Fore.RESET)
+        else:
+            print(Fore.GREEN + f"Distância horizontal: {distance} km" + Fore.RESET)
 
     return distance
 
 
-def calculate_g_value(velocities, time):
+def calculate_g_value(velocities, time, mode):
     total_acceleration = 0
     for i in range(len(velocities) - 1):
         delta_vx = velocities[i + 1][0] - velocities[i][0]
@@ -274,15 +327,16 @@ def calculate_g_value(velocities, time):
 
     g_value = total_acceleration / g
 
-    if g_value >= 15:
-        print(Fore.RED + f"valor de g: {g_value}" + Fore.RESET)
-    else:
-        print(Fore.GREEN + f"valor de g: {g_value}" + Fore.RESET)
+    if(mode == "manual" or mode == "fast"):
+        if g_value >= 15:
+            print(Fore.RED + f"valor de g: {g_value}" + Fore.RESET)
+        else:
+            print(Fore.GREEN + f"valor de g: {g_value}" + Fore.RESET)
 
     return total_acceleration, g_value
 
 
-def calculate_final_velocity(vx, vy):
+def calculate_final_velocity(vx, vy, mode):
     """
     Calculate the final velocity of the object.
 
@@ -300,10 +354,12 @@ def calculate_final_velocity(vx, vy):
     """
     final_velocity = math.sqrt(vx**2 + vy**2)
 
-    if final_velocity >= 25:
-        print(Fore.RED + f"Velocidade final: {final_velocity} m/s" + Fore.RESET)
-    else:
-        print(Fore.GREEN + f"Velocidade final: {final_velocity} m/s" + Fore.RESET)
+    if(mode == "manual" or mode == "fast"):
+        if final_velocity >= 25:
+            print(Fore.RED + f"Velocidade final: {final_velocity} m/s" + Fore.RESET)
+        else:
+            print(Fore.GREEN + f"Velocidade final: {final_velocity} m/s" + Fore.RESET)
+
     return final_velocity
 
 
@@ -322,7 +378,7 @@ def plot_trajectory(x_forward, y_forward, x_backward, y_backward, deploy_positio
     plt.xlabel("Horizontal Distance (km)")
     plt.ylabel("Altitude (km)")
     plt.legend()
-    plt.title("Reentry Trajectory Comparison")
+    plt.title("Reentry Trajectory")
     plt.show()
 
 
@@ -333,7 +389,7 @@ def run_simulation(v0, alpha, mode):
     v0x, v0y = calc_v0_components(v0, alpha)
 
     positions, velocities, time, deploy_position = simulation(
-        v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, filename
+        v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, filename, mode
     )
 
     x_forward, y_forward = zip(*positions)
@@ -346,14 +402,13 @@ def run_simulation(v0, alpha, mode):
     # y_backward_km = [altitude / 1000 for altitude in y_backward]
 
     # Calculate the horizontal distance
-    h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km)
+    h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
 
     # Calculate the final velocity
-    final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1])
+    final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1], mode)
 
     # Calculate the total acceleration and the g value
-    total_acceleration, g_value = calculate_g_value(velocities, time)
-
+    total_acceleration, g_value = calculate_g_value(velocities, time, mode)
 
     if (
         (h_distance <= 2500 or h_distance >= 4500)
@@ -371,16 +426,6 @@ def run_simulation(v0, alpha, mode):
     return sucess
 
 
-def check_parameters(v0, alpha, mode):
-    if mode == "manual":
-        if not v0.isdigit() or not alpha.isdigit():
-            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
-            exit(1)
-    if int(alpha) > 15 or int(alpha) < 0 and int(v0) < 0 or int(v0) > 15000:
-        print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
-        exit(1)
-
-
 def run_automatic(mode):
     """
     Run the simulation with a range of values for v0 and alpha
@@ -390,22 +435,40 @@ def run_automatic(mode):
     mode : str
         The mode of the simulation
     """
+    # 2250 simulations
     v0_range = list(range(1, 15001, 100))  # should start in 0
     alpha_range = list(range(16))
 
     sucess_count = 0
+    simulation_count = 0
     valid_parameters = np.empty((0, 2), dtype=int)
 
     for v0 in v0_range:
         for alpha in alpha_range:
+            print(
+                "Sucessos: {} | Simulações: {}".format(sucess_count, simulation_count),
+                end="\r",
+            )
+
             v0 = int(v0)
             alpha = int(alpha)
             sucess = run_simulation(v0, alpha, mode)
+            simulation_count += 1
             if sucess:
                 sucess_count += 1
                 valid_parameters = np.append(valid_parameters, [[v0, alpha]], axis=0)
 
     print(Fore.GREEN + f"Sucessos: {sucess_count}" + Fore.RESET)
+
+
+def check_parameters(v0, alpha, mode):
+    if mode == "manual":
+        if not v0.isdigit() or not alpha.isdigit():
+            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
+            exit(1)
+    if int(alpha) > 15 or int(alpha) < 0 and int(v0) < 0 or int(v0) > 15000:
+        print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
+        exit(1)
 
 
 def main():
