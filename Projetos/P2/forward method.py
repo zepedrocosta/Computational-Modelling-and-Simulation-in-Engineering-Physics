@@ -239,9 +239,9 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
     for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
         rho = air_density(y, filename)
-        
+
         if y <= 1000 and v <= 100 and not parachute:
-            if(mode == "manual" or mode == "fast"):
+            if mode == "manual" or mode == "fast":
                 print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n")
             deploy_position = (x, y)
             drag_coefficient += Cdp
@@ -251,11 +251,11 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
         Fd = drag_force(v, rho, drag_coefficient, area)
         Fl = lift_force(v, rho, Cl, area)
 
-        ax = Fd * vx / (m * v)
+        ax = Fd / m
         if parachute:
-            ay = -g + ((Fd) * vy) / (m * v)
+            ay = -g + (Fd / m)
         else:
-            ay = -g + ((Fd - Fl) * vy) / (m * v)
+            ay = -g + ((Fd - Fl) / m)
 
         vx += ax * dt
         vy += ay * dt
@@ -270,7 +270,7 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
         if y <= 0:
             break
 
-    if(mode == "manual" or mode == "fast"):
+    if mode == "manual" or mode == "fast":
         print(Fore.CYAN + f"Tempo de reentrada: {time} s" + "\n" + Fore.RESET)
 
     return positions, velocities, time, deploy_position
@@ -304,7 +304,7 @@ def calculate_horizontal_distance(x, y, mode):
 
     distance = R_earth * theta
 
-    if(mode == "manual" or mode == "fast"):
+    if mode == "manual" or mode == "fast":
         if distance <= 2500 or distance >= 4500:
             print(Fore.RED + f"Distância horizontal: {distance} km" + Fore.RESET)
         else:
@@ -327,7 +327,7 @@ def calculate_g_value(velocities, time, mode):
 
     g_value = total_acceleration / g
 
-    if(mode == "manual" or mode == "fast"):
+    if mode == "manual" or mode == "fast":
         if g_value >= 15:
             print(Fore.RED + f"valor de g: {g_value}" + Fore.RESET)
         else:
@@ -354,7 +354,7 @@ def calculate_final_velocity(vx, vy, mode):
     """
     final_velocity = math.sqrt(vx**2 + vy**2)
 
-    if(mode == "manual" or mode == "fast"):
+    if mode == "manual" or mode == "fast":
         if final_velocity >= 25:
             print(Fore.RED + f"Velocidade final: {final_velocity} m/s" + Fore.RESET)
         else:
@@ -384,7 +384,7 @@ def plot_trajectory(x_forward, y_forward, x_backward, y_backward, deploy_positio
 
 def run_simulation(v0, alpha, mode):
     filename = "Projetos/P2/airdensity - students.txt"
-    sucess = True
+    success = True
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
@@ -405,7 +405,9 @@ def run_simulation(v0, alpha, mode):
     h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
 
     # Calculate the final velocity
-    final_velocity = calculate_final_velocity(velocities[-1][0], velocities[-1][1], mode)
+    final_velocity = calculate_final_velocity(
+        velocities[-1][0], velocities[-1][1], mode
+    )
 
     # Calculate the total acceleration and the g value
     total_acceleration, g_value = calculate_g_value(velocities, time, mode)
@@ -415,15 +417,15 @@ def run_simulation(v0, alpha, mode):
         or g_value >= 15
         or final_velocity >= 25
     ):
-        sucess = False
+        success = False
 
     if mode == "manual" or mode == "fast":
         plot_trajectory(x_forward_km, y_forward_km, None, None, deploy_position)
-        if not sucess:
+        if not success:
             print("\n" + Fore.RED + "Simulação falhou!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
-    return sucess
+    return success
 
 
 def run_automatic(mode):
@@ -435,30 +437,29 @@ def run_automatic(mode):
     mode : str
         The mode of the simulation
     """
-    # 2250 simulations
-    v0_range = list(range(1, 15001, 100))  # should start in 0
+    v0_range = list(range(0, 15001, 100))  # should start in 0
     alpha_range = list(range(16))
 
-    sucess_count = 0
+    success_count = 0
     simulation_count = 0
     valid_parameters = np.empty((0, 2), dtype=int)
 
     for v0 in v0_range:
         for alpha in alpha_range:
             print(
-                "Sucessos: {} | Simulações: {}".format(sucess_count, simulation_count),
+                "Sucessos: {} | Simulações: {}".format(success_count, simulation_count),
                 end="\r",
             )
 
             v0 = int(v0)
             alpha = int(alpha)
-            sucess = run_simulation(v0, alpha, mode)
+            success = run_simulation(v0, alpha, mode)
             simulation_count += 1
-            if sucess:
-                sucess_count += 1
+            if success:
+                success_count += 1
                 valid_parameters = np.append(valid_parameters, [[v0, alpha]], axis=0)
 
-    print(Fore.GREEN + f"Sucessos: {sucess_count}" + Fore.RESET)
+    print(Fore.GREEN + f"Sucessos: {success_count}" + Fore.RESET)
 
 
 def check_parameters(v0, alpha, mode):
@@ -471,27 +472,7 @@ def check_parameters(v0, alpha, mode):
         exit(1)
 
 
-def main():
-    print(
-        Fore.MAGENTA
-        + "Simulação de reentrada do modulo espacial | SMCEF 23/24 | P2 | FCT-UNL"
-    )
-    print("======================================================================")
-    print("Insira o modo de simulação:")
-    print(Fore.BLUE + "1 - Automático:")
-    print(
-        "Este modo executará todos os valores para v0 entre 0 e 15000 m/s e todos os valores para alpha entre 0 e 15 graus."
-    )
-    print(Fore.GREEN + "2 - Manual")
-    print("Este modo solicitará os valores de v0 e alpha.")
-    print(Fore.BLUE + "3 - Rápido")
-    print(
-        "Este modo executará a simulação com os valores de v0 e alpha fornecidos no código."
-    )
-    user_input = input(
-        "\n" + Fore.YELLOW + "Por favor insira o modo (1/2/3): " + Fore.RESET
-    )
-
+def handle_simulation_mode(user_input):
     if user_input == "1":
         mode = "automatic"
         print(Fore.MAGENTA + "Modo automático selecionado.")
@@ -522,6 +503,30 @@ def main():
     else:
         print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
         exit(1)
+
+
+def main():
+    print(
+        Fore.MAGENTA
+        + "Simulação de reentrada do modulo espacial | SMCEF 23/24 | P2 | FCT-UNL"
+    )
+    print("======================================================================")
+    print("Insira o modo de simulação:")
+    print(Fore.BLUE + "1 - Automático:")
+    print(
+        "Este modo executará todos os valores para v0 entre 0 e 15000 m/s e todos os valores para alpha entre 0 e 15 graus."
+    )
+    print(Fore.GREEN + "2 - Manual")
+    print("Este modo solicitará os valores de v0 e alpha.")
+    print(Fore.BLUE + "3 - Rápido")
+    print(
+        "Este modo executará a simulação com os valores de v0 e alpha fornecidos no código."
+    )
+    user_input = input(
+        "\n" + Fore.YELLOW + "Por favor insira o modo (1/2/3): " + Fore.RESET
+    )
+
+    handle_simulation_mode(user_input)
 
 
 if __name__ == "__main__":
