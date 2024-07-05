@@ -1,4 +1,5 @@
 import math
+from multiprocessing import Pool
 from colorama import Fore
 import numpy as np
 import matplotlib.pyplot as plt
@@ -445,21 +446,18 @@ def run_simulation(v0, alpha, mode):
     if mode == "manual" or mode == "fast":
         plot_trajectory(x_forward_km, y_forward_km, None, None, deploy_position)
         if not success:
-            print("\n" + Fore.RED + "Simulação falhou!!" + Fore.RESET)
+            print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
     return success
 
 
-def run_automatic(mode):
-    """
-    Run the simulation with a range of values for v0 and alpha
+def run_simulation_wrapper(params):
+    v0, alpha, mode = params
+    return v0, alpha, run_simulation(v0, alpha, mode)
 
-    Parameters
-    ----------
-    mode : str
-        The mode of the simulation
-    """
+
+def run_automatic(mode, n_processes=5):
     v0_range = list(range(0, 15001, 100))  # should start in 0
     alpha_range = list(range(16))
 
@@ -467,21 +465,24 @@ def run_automatic(mode):
     simulation_count = 0
     valid_parameters = np.empty((0, 2), dtype=int)
 
-    for v0 in v0_range:
-        for alpha in alpha_range:
+    # 2265 combinations
+    parameters = [(v0, alpha, mode) for v0 in v0_range for alpha in alpha_range]
+
+    with Pool(n_processes) as pool:
+        for v0, alpha, success in pool.imap(run_simulation_wrapper, parameters):
             print(
                 "Sucessos: {} | Simulações: {}".format(success_count, simulation_count),
                 end="\r",
             )
-
-            v0 = int(v0)
-            alpha = int(alpha)
-            success = run_simulation(v0, alpha, mode)
             simulation_count += 1
             if success:
                 success_count += 1
                 valid_parameters = np.append(valid_parameters, [[v0, alpha]], axis=0)
 
+    print(
+        "Sucessos: {} | Simulações: {}".format(success_count, simulation_count),
+        end="\r",
+    )
     print(Fore.GREEN + f"Sucessos: {success_count}" + Fore.RESET)
 
 
@@ -498,12 +499,20 @@ def check_parameters(v0, alpha, mode):
 def handle_simulation_mode(user_input):
     if user_input == "1":
         mode = "automatic"
-        print(Fore.MAGENTA + "Modo automático selecionado.")
-        print("Correndo a simulação..." + Fore.RESET + "\n")
-        run_automatic(mode)
+        print(Fore.MAGENTA + "Modo automático selecionado." + "\n" + Fore.RESET)
+        n_processes = input(
+            Fore.GREEN
+            + "Por favor insira o número de processos (default = 5): "
+            + Fore.RESET
+        )
+        if n_processes == "":
+            n_processes = 5
+        print("Número de processos concurrentes: " + str(n_processes) + Fore.RESET + "\n")
+        print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
+        run_automatic(mode, int(n_processes))
     elif user_input == "2":
         mode = "manual"
-        print(Fore.MAGENTA + "Modo manual selecionado.")
+        print(Fore.MAGENTA + "Modo manual selecionado." + "\n" + Fore.RESET)
         v0 = input(
             Fore.CYAN + "Por favor insira a velocidade inicial (m/s): " + Fore.RESET
         )
@@ -516,11 +525,11 @@ def handle_simulation_mode(user_input):
         run_simulation(int(v0), int(alpha), mode)
     elif user_input == "3":
         mode = "fast"
-        print(Fore.MAGENTA + "Modo rápido selecionado.")
+        print(Fore.MAGENTA + "Modo rápido selecionado." + "\n" + Fore.RESET)
         v0 = 11000
         alpha = 6
         check_parameters(v0, alpha, mode)
-        print("Correndo a simulação..." + Fore.RESET + "\n")
+        print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
         print_parameters(int(v0), int(alpha))
         run_simulation(v0, alpha, mode)
     else:
@@ -534,7 +543,7 @@ def main():
         + "Simulação de reentrada do modulo espacial | SMCEF 23/24 | P2 | FCT-UNL"
     )
     print("======================================================================")
-    print("Insira o modo de simulação:")
+    print("Insira o modo de simulação:" + "\n" + Fore.RESET)
     print(Fore.BLUE + "1 - Automático:")
     print(
         "Este modo executará todos os valores para v0 entre 0 e 15000 m/s e todos os valores para alpha entre 0 e 15 graus."
