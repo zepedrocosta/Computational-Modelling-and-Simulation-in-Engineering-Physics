@@ -46,6 +46,7 @@ def run_automatic(mode):
 
 # Dummy implementation: consider all simulations successful
 def run_simulation(v0, alpha, mode):
+    print(f"Running simulation with v0={v0} and alpha={alpha}")
     return True
 
 
