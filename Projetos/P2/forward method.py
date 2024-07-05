@@ -251,11 +251,11 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
         Fd = drag_force(v, rho, drag_coefficient, area)
         Fl = lift_force(v, rho, Cl, area)
 
-        ax = Fd / m
+        ax = Fd * np.cos(math.atan2(vy, vx)) / m
         if parachute:
-            ay = -g + (Fd / m)
+            ay = (Fd * np.sin(math.atan2(vy, vx))) / m - g
         else:
-            ay = -g + ((Fd - Fl) / m)
+            ay = (Fd * np.sin(math.atan2(vy, vx)) + Fl) / m - g
 
         vx += ax * dt
         vy += ay * dt
@@ -271,7 +271,7 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
             break
 
     if mode == "manual" or mode == "fast":
-        print(Fore.CYAN + f"Tempo de reentrada: {time} s" + "\n" + Fore.RESET)
+        print(Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET)
 
     return positions, velocities, time, deploy_position
 
@@ -304,7 +304,7 @@ def calculate_horizontal_distance(x, y, mode):
 
     distance = R_earth * theta
 
-    if mode == "manual" or mode == "fast":
+    if mode == "manual" or mode == "fast" or mode == "automatic":
         if distance <= 2500 or distance >= 4500:
             print(Fore.RED + f"Distância horizontal: {distance} km" + Fore.RESET)
         else:
@@ -314,19 +314,38 @@ def calculate_horizontal_distance(x, y, mode):
 
 
 def calculate_g_value(velocities, time, mode):
+    """
+    Calculate the total acceleration and the g value.
+
+    Parameters
+    ----------
+    velocities : list
+        The velocities of the object
+    time : float
+        The time of the simulation
+    mode : str
+        The mode of the simulation
+
+    Returns
+    -------
+    total_acceleration : float
+        The total acceleration of the object
+    g_value : float
+        The g value of the object
+    """
+    n = len(velocities)
     total_acceleration = 0
-    for i in range(len(velocities) - 1):
-        delta_vx = velocities[i + 1][0] - velocities[i][0]
-        delta_vy = velocities[i + 1][1] - velocities[i][1]
+    g_value = 0
 
-        delta_v = math.sqrt(delta_vx**2 + delta_vy**2)
+    for i in range(1, n):
+        vx_i, vy_i = velocities[i]
+        vx_i_1, vy_i_1 = velocities[i - 1]
 
-        total_acceleration += delta_v
+        ay = (vy_i - vy_i_1) / dt
 
-    total_acceleration /= time
+        total_acceleration += ay
 
-    g_value = total_acceleration / g
-
+    g_value = total_acceleration / 10
     if mode == "manual" or mode == "fast":
         if g_value >= 15:
             print(Fore.RED + f"valor de g: {g_value}" + Fore.RESET)
@@ -494,8 +513,8 @@ def handle_simulation_mode(user_input):
     elif user_input == "3":
         mode = "fast"
         print(Fore.MAGENTA + "Modo rápido selecionado.")
-        v0 = 15000
-        alpha = 0
+        v0 = 11000
+        alpha = 6
         check_parameters(v0, alpha, mode)
         print("Correndo a simulação..." + Fore.RESET + "\n")
         print_parameters(int(v0), int(alpha))
