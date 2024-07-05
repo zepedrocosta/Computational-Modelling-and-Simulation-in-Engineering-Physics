@@ -236,7 +236,7 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
     area = A
     parachute = False
     deploy_position = None
-    for _ in range(int(5000 / dt)):
+    for i in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
         rho = air_density(y, filename)
 
@@ -271,7 +271,9 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
             break
 
     if mode == "manual" or mode == "fast":
-        print(Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET)
+        print(
+            Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
+        )
 
     return positions, velocities, time, deploy_position
 
@@ -304,7 +306,7 @@ def calculate_horizontal_distance(x, y, mode):
 
     distance = R_earth * theta
 
-    if mode == "manual" or mode == "fast" or mode == "automatic":
+    if mode == "manual" or mode == "fast":
         if distance <= 2500 or distance >= 4500:
             print(Fore.RED + f"Distância horizontal: {distance} km" + Fore.RESET)
         else:
@@ -340,17 +342,17 @@ def calculate_g_value(velocities, time, mode):
     for i in range(1, n):
         vx_i, vy_i = velocities[i]
         vx_i_1, vy_i_1 = velocities[i - 1]
+        ax_i = (vx_i - vx_i_1) / dt
+        ay_i = (vy_i - vy_i_1) / dt
+        total_acceleration += math.sqrt(ax_i**2 + ay_i**2)
 
-        ay = (vy_i - vy_i_1) / dt
+    g_value = total_acceleration / time / g
 
-        total_acceleration += ay
-
-    g_value = total_acceleration / 10
     if mode == "manual" or mode == "fast":
-        if g_value >= 15:
-            print(Fore.RED + f"valor de g: {g_value}" + Fore.RESET)
+        if g_value >= 15 or g_value <= 1:
+            print(Fore.RED + f"Valor de g: {g_value}" + Fore.RESET)
         else:
-            print(Fore.GREEN + f"valor de g: {g_value}" + Fore.RESET)
+            print(Fore.GREEN + f"Valor de g: {g_value}" + Fore.RESET)
 
     return total_acceleration, g_value
 
@@ -434,7 +436,9 @@ def run_simulation(v0, alpha, mode):
     if (
         (h_distance <= 2500 or h_distance >= 4500)
         or g_value >= 15
+        or g_value <= 1
         or final_velocity >= 25
+        or final_velocity <= 0
     ):
         success = False
 
