@@ -457,15 +457,14 @@ def run_simulation_wrapper(params):
     return v0, alpha, run_simulation(v0, alpha, mode)
 
 
-def run_automatic(mode, n_processes=5):
-    v0_range = list(range(0, 15001, 100))  # should start in 0
+def run_automatic(mode, n_processes, spacing):
+    v0_range = list(range(0, 15001, spacing))
     alpha_range = list(range(16))
 
     success_count = 0
     simulation_count = 0
     valid_parameters = np.empty((0, 2), dtype=int)
 
-    # 2265 combinations
     parameters = [(v0, alpha, mode) for v0 in v0_range for alpha in alpha_range]
 
     with Pool(n_processes) as pool:
@@ -495,11 +494,17 @@ def check_parameters(v0, alpha, mode):
         print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
         exit(1)
 
+def calculate_number_of_simulations(n):
+    v0_range_length = 15000 // n + 1
+    alpha_range_length = 16
+    simulation_count = v0_range_length * alpha_range_length
+    return simulation_count
 
 def handle_simulation_mode(user_input):
     if user_input == "1":
         mode = "automatic"
         print(Fore.MAGENTA + "Modo automático selecionado." + "\n" + Fore.RESET)
+
         n_processes = input(
             Fore.GREEN
             + "Por favor insira o número de processos (default = 5): "
@@ -507,9 +512,23 @@ def handle_simulation_mode(user_input):
         )
         if n_processes == "":
             n_processes = 5
-        print("Número de processos concurrentes: " + str(n_processes) + Fore.RESET + "\n")
+
+        spacing = input(
+            Fore.CYAN
+            + "Por favor insira o espaçamento entre os valores de v0 e alpha (default = 100): "
+            + Fore.RESET
+        )
+        if spacing == "":
+            spacing = 100
+
+        print("\n" + "Número de processos concurrentes: " + str(n_processes))
+        print("Espaçamento entre os valores de v0 e alpha: " + str(spacing) + "\n")
+
+        n_simulations = calculate_number_of_simulations(int(spacing))
+        print(Fore.YELLOW + "Número de simulações a correr: " + str(n_simulations) + Fore.RESET + "\n")
+
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
-        run_automatic(mode, int(n_processes))
+        run_automatic(mode, int(n_processes), int(spacing))
     elif user_input == "2":
         mode = "manual"
         print(Fore.MAGENTA + "Modo manual selecionado." + "\n" + Fore.RESET)
