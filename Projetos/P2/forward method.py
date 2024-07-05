@@ -280,23 +280,6 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
 
 
 def calculate_horizontal_distance(x, y, mode):
-    """
-    Calculate the horizontal distance projected on the Earth's surface.
-
-    Parameters
-    ----------
-    x : list
-        The x values of the trajectory
-    y : list
-        The y values of the trajectory
-    R_earth : float
-        The radius of the Earth in kilometers
-
-    Returns
-    -------
-    distance : float
-        The horizontal distance projected on the Earth's surface
-    """
     R_earth = 6371
     theta = 0
     n = len(x)
@@ -359,21 +342,6 @@ def calculate_g_value(velocities, time, mode):
 
 
 def calculate_final_velocity(vx, vy, mode):
-    """
-    Calculate the final velocity of the object.
-
-    Parameters
-    ----------
-    vx : float
-        The horizontal velocity
-    vy : float
-        The vertical velocity
-
-    Returns
-    -------
-    final_velocity : float
-        The final velocity of the object
-    """
     final_velocity = math.sqrt(vx**2 + vy**2)
 
     if mode == "manual" or mode == "fast":
@@ -385,11 +353,10 @@ def calculate_final_velocity(vx, vy, mode):
     return final_velocity
 
 
-def plot_trajectory(x_forward, y_forward, x_backward, y_backward, deploy_position):
+def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
     # Plot trajectories
     plt.figure()
     plt.plot(x_forward, y_forward, label="Forward Method")
-    # plt.plot(x_backward, y_backward_km, label="Backward Method")
     if deploy_position:
         plt.plot(
             deploy_position[0] / 1000,
@@ -397,10 +364,10 @@ def plot_trajectory(x_forward, y_forward, x_backward, y_backward, deploy_positio
             "ro",
             label="Deploy Position",
         )
-    plt.xlabel("Horizontal Distance (km)")
+    plt.xlabel("Distância horizontal (km)")
     plt.ylabel("Altitude (km)")
     plt.legend()
-    plt.title("Reentry Trajectory")
+    plt.title(f"Trajetória de reentrada | v0 = {v0} m/s | alpha = {alpha} graus")
     plt.show()
 
 
@@ -415,13 +382,10 @@ def run_simulation(v0, alpha, mode):
     )
 
     x_forward, y_forward = zip(*positions)
-    # x_backward, y_backward = zip(*positions_backward)
 
     # Convert altitude from meters to kilometers
     x_forward_km = [distance / 1000 for distance in x_forward]
     y_forward_km = [altitude / 1000 for altitude in y_forward]
-    # x_backward_km = [distance / 1000 for distance in x_backward]
-    # y_backward_km = [altitude / 1000 for altitude in y_backward]
 
     # Calculate the horizontal distance
     h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
@@ -444,7 +408,7 @@ def run_simulation(v0, alpha, mode):
         success = False
 
     if mode == "manual" or mode == "fast":
-        plot_trajectory(x_forward_km, y_forward_km, None, None, deploy_position)
+        plot_trajectory(x_forward_km, y_forward_km, deploy_position, v0, alpha)
         if not success:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
@@ -494,38 +458,56 @@ def check_parameters(v0, alpha, mode):
         print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
         exit(1)
 
+
 def calculate_number_of_simulations(n):
     v0_range_length = 15000 // n + 1
     alpha_range_length = 16
     simulation_count = v0_range_length * alpha_range_length
     return simulation_count
 
+
 def handle_simulation_mode(user_input):
     if user_input == "1":
         mode = "automatic"
         print(Fore.MAGENTA + "Modo automático selecionado." + "\n" + Fore.RESET)
 
-        n_processes = input(
-            Fore.GREEN
-            + "Por favor insira o número de processos (default = 5): "
+        spacing = input(
+            Fore.CYAN
+            + "Por favor insira o espaçamento entre os valores de v0 (default = 100): "
             + Fore.RESET
         )
+        if not spacing.isdigit() or int(spacing) <= 0 or int(spacing) > 15000:
+            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
+            exit(1)
+        if spacing == "":
+            spacing = 100
+        print("Espaçamento entre os valores de v0: " + str(spacing) + "\n")
+
+        n_simulations = calculate_number_of_simulations(int(spacing))
+        print(
+            Fore.YELLOW
+            + "Número de simulações a correr: "
+            + str(n_simulations)
+            + Fore.RESET
+            + "\n"
+        )
+
+        n_processes = input(
+            Fore.GREEN
+            + "Por favor insira o número de processos menor que o número de simulações a correr (default = 5): "
+            + Fore.RESET
+        )
+        if (
+            not n_processes.isdigit()
+            or int(n_processes) <= 0
+            or int(n_processes) > n_simulations
+        ):
+            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
+            exit(1)
         if n_processes == "":
             n_processes = 5
 
-        spacing = input(
-            Fore.CYAN
-            + "Por favor insira o espaçamento entre os valores de v0 e alpha (default = 100): "
-            + Fore.RESET
-        )
-        if spacing == "":
-            spacing = 100
-
         print("\n" + "Número de processos concurrentes: " + str(n_processes))
-        print("Espaçamento entre os valores de v0 e alpha: " + str(spacing) + "\n")
-
-        n_simulations = calculate_number_of_simulations(int(spacing))
-        print(Fore.YELLOW + "Número de simulações a correr: " + str(n_simulations) + Fore.RESET + "\n")
 
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
         run_automatic(mode, int(n_processes), int(spacing))
