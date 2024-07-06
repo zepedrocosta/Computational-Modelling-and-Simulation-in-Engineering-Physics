@@ -24,10 +24,10 @@ x = 0.0  # horizontal position (m)
 y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
+
 results_file = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "accepted_simulations.tsv"
 )
-
 
 def calc_v0_components(v0, alpha):
     """
@@ -38,7 +38,7 @@ def calc_v0_components(v0, alpha):
     v0 : float
         The initial velocity
     alpha : float
-        The downward angle with the horizontal
+        The downward angle with the horizon
 
     Returns
     -------
@@ -127,7 +127,6 @@ def get_exponential_fit(altitude, density):
     params, _ = curve_fit(exponential_model, altitude_norm, density, p0=initial_guess)
     A, B = params
 
-    # Extend the fit_altitude range to 150000 meters
     fit_altitude_range = 150000
     fit_altitude_norm = np.linspace(
         min(altitude_norm), fit_altitude_range / np.max(altitude), 500
@@ -139,7 +138,7 @@ def get_exponential_fit(altitude, density):
     return fit_altitude, fit_density
 
 
-def air_density(altitude, filename):
+def air_density(altitude):
     """
     Get the air density at a given altitude
 
@@ -211,10 +210,48 @@ def air_density(altitude, filename):
 
 
 def drag_force(v, rho, Cd, A):
+    """
+    Calculate the drag force
+
+    Parameters
+    ----------
+    v : float
+        The velocity
+    rho : float
+        The air density
+    Cd : float
+        The drag coefficient
+    A : float
+        The cross-sectional area
+    
+    Returns
+    -------
+    float
+        The drag force
+    """
     return -0.5 * Cd * A * rho * v**2
 
 
 def lift_force(v, rho, Cl, A):
+    """
+    Calculate the lift force
+    
+    Parameters
+    ----------
+    v : float
+        The velocity
+    rho : float
+        The air density
+    Cl : float
+        The lift coefficient
+    A : float
+        The cross-sectional area
+        
+    Returns
+    -------
+    float
+        The lift force
+    """
     return 0.5 * Cl * A * rho * v**2
 
 
@@ -234,6 +271,45 @@ def print_parameters(v0, alpha):
 
 
 def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
+    """
+    Forward method simulation
+    
+    Parameters
+    ----------
+    vx : float
+        The initial horizontal velocity
+    vy : float
+        The initial vertical velocity
+    x : float
+        The initial horizontal position
+    y : float
+        The initial altitude
+    Cd : float
+        The drag coefficient
+    Cl : float
+        The lift coefficient
+    A : float
+        The cross-sectional area
+    Cdp : float
+        The drag coefficient of the parachute
+    Ap : float
+        The cross-sectional area of the parachute
+    filename : str
+        The name of the file to be read
+    mode : str
+        The mode of the simulation
+        
+    Returns
+    -------
+    positions : list
+        The positions of the object
+    velocities : list
+        The velocities of the object
+    time : float
+        The time of the simulation
+    deploy_position : tuple
+        The deploy position of the parachute
+    """
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
@@ -284,6 +360,23 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
 
 
 def calculate_horizontal_distance(x, y, mode):
+    """
+    Calculate the horizontal distance
+    
+    Parameters
+    ----------
+    x : list
+        The horizontal positions
+    y : list
+        The altitudes
+    mode : str
+        The mode of the simulation
+        
+    Returns
+    -------
+    distance : float
+        The horizontal distance
+    """
     R_earth = 6371
     theta = 0
     n = len(x)
@@ -346,6 +439,23 @@ def calculate_g_value(velocities, time, mode):
 
 
 def calculate_final_velocity(vx, vy, mode):
+    """
+    Calculate the final velocity
+    
+    Parameters
+    ----------
+    vx : float
+        The final horizontal velocity
+    vy : float
+        The final vertical velocity
+    mode : str
+        The mode of the simulation
+    
+    Returns
+    -------
+    final_velocity : float
+        The final velocity of the object
+        """
     final_velocity = math.sqrt(vx**2 + vy**2)
 
     if mode == "manual" or mode == "fast":
@@ -358,7 +468,22 @@ def calculate_final_velocity(vx, vy, mode):
 
 
 def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
-    # Plot trajectories
+    """
+    Plot the trajectory of the object
+    
+    Parameters
+    ----------
+    x_forward : list
+        The horizontal positions
+    y_forward : list
+        The altitudes
+    deploy_position : tuple
+        The deploy position of the parachute
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
+    """
     plt.figure()
     plt.plot(x_forward, y_forward, label="Forward Method")
     if deploy_position:
@@ -376,6 +501,23 @@ def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
 
 
 def run_simulation(v0, alpha, mode):
+    """
+    Run the simulation
+    
+    Parameters
+    ----------
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
+    mode : str
+        The mode of the simulation
+    
+    Returns
+    -------
+    success : bool
+        True if the simulation is accepted, False otherwise
+    """
     filename = "Projetos/P2/airdensity - students.txt"
     success = True
 
@@ -387,20 +529,16 @@ def run_simulation(v0, alpha, mode):
 
     x_forward, y_forward = zip(*positions)
 
-    # Convert altitude from meters to kilometers
     x_forward_km = [distance / 1000 for distance in x_forward]
     y_forward_km = [altitude / 1000 for altitude in y_forward]
 
-    # Calculate the horizontal distance
     h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
 
-    # Calculate the final velocity
     final_velocity = calculate_final_velocity(
         velocities[-1][0], velocities[-1][1], mode
     )
-
-    # Calculate the total acceleration and the g value
-    total_acceleration, g_value = calculate_g_value(velocities, time, mode)
+    
+    g_value = calculate_g_value(velocities, time, mode)
 
     if (
         (h_distance <= 2500 or h_distance >= 4500)
@@ -424,16 +562,70 @@ def run_simulation(v0, alpha, mode):
     return success
 
 def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
+    """
+    Save the information to a file
+    
+    Parameters
+    ----------
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
+    distance : float
+        The horizontal distance
+    final_velocity : float
+        The final velocity
+    g_value : float
+        The g value
+    """
     with open(results_file, "a") as file:
         file.write(f"{v0}\t{alpha}\t{distance}\t{final_velocity}\t{g_value}\n")
 
 
 def run_simulation_wrapper(params):
+    """
+    Wrapper for the simulation function
+    
+    Parameters
+    ----------
+    params : tuple
+        The parameters of the simulation
+        
+    Returns
+    -------
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
+    success : bool
+        True if the simulation is accepted, False otherwise
+    """
     v0, alpha, mode = params
     return v0, alpha, run_simulation(v0, alpha, mode)
 
 
 def run_automatic(mode, n_processes, spacing):
+    """
+    Run the simulation in automatic mode
+    
+    Parameters
+    ----------
+    mode : str
+        The mode of the simulation
+    n_processes : int
+        The number of processes to run concurrently
+    spacing : int
+        The spacing between the values of v0
+    
+    Returns
+    -------
+    success_count : int
+        The number of successful simulations
+    simulation_count : int
+        The number of simulations
+    valid_parameters : numpy array
+        The valid parameters
+    """
     v0_range = list(range(0, 15001, spacing))
     alpha_range = list(range(16))
 
@@ -459,6 +651,27 @@ def run_automatic(mode, n_processes, spacing):
 
 
 def check_parameters(v0, alpha, mode):
+    """
+    Check if the parameters are valid
+    
+    Parameters
+    ----------
+    v0 : str
+        The initial velocity
+    alpha : str
+        The downward angle with the horizon
+    mode : str
+        The mode of the simulation
+        
+    Returns
+    -------
+    None
+    
+    Raises
+    ------
+    ValueError
+        If the parameters are invalid
+    """
     if mode == "manual":
         if not v0.isdigit() or not alpha.isdigit():
             print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
@@ -469,6 +682,20 @@ def check_parameters(v0, alpha, mode):
 
 
 def calculate_number_of_simulations(n):
+    """
+    Calculate the number of simulations
+    
+    Parameters
+    ----------
+    n : int
+        The spacing between the values of v0
+    
+    Returns
+    -------
+    simulation_count : int
+        The number of simulations
+            
+                """
     v0_range_length = 15000 // n + 1
     alpha_range_length = 16
     simulation_count = v0_range_length * alpha_range_length
@@ -476,6 +703,23 @@ def calculate_number_of_simulations(n):
 
 
 def handle_simulation_mode(user_input):
+    """
+    Handle the simulation mode
+    
+    Parameters
+    ----------
+    user_input : str
+        The user input
+        
+    Returns
+    -------
+    None
+    
+    Raises
+    ------
+    ValueError
+        If the input is invalid
+    """
     if user_input == "1":
         mode = "automatic"
         print(Fore.MAGENTA + "Modo automático selecionado." + "\n" + Fore.RESET)
@@ -552,6 +796,13 @@ def handle_simulation_mode(user_input):
 
 
 def main():
+    """
+    Main function
+    
+    Returns
+    -------
+    None
+    """
     print(
         Fore.MAGENTA
         + "Simulação de reentrada do modulo espacial | SMCEF 23/24 | P2 | FCT-UNL"
@@ -576,4 +827,11 @@ def main():
 
 
 if __name__ == "__main__":
+    """
+    Run the main function
+    
+    Returns
+    -------
+    None
+    """
     main()
