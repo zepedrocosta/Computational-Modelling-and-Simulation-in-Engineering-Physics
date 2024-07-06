@@ -1,10 +1,10 @@
 import math
-from multiprocessing import Pool
 import os
-from colorama import Fore
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from multiprocessing import Pool
+from colorama import Fore
 
 """
 SMCEF - 2024 - P2 - Reentry of a Space Capsule
@@ -24,7 +24,9 @@ x = 0.0  # horizontal position (m)
 y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
-results_filename = "accepted_simulations.tsv"
+results_file = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "accepted_simulations.tsv"
+)
 
 
 def calc_v0_components(v0, alpha):
@@ -409,18 +411,20 @@ def run_simulation(v0, alpha, mode):
     ):
         success = False
 
+    if success:
+        save_info_to_file(v0, alpha, h_distance, final_velocity, g_value)
+
     if mode == "manual" or mode == "fast":
         plot_trajectory(x_forward_km, y_forward_km, deploy_position, v0, alpha)
         if not success:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
-            save_info_to_file(v0, alpha, h_distance, final_velocity, g_value)
+
     return success
 
-
 def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
-    with open(results_filename, "a") as file:
+    with open(results_file, "a") as file:
         file.write(f"{v0}\t{alpha}\t{distance}\t{final_velocity}\t{g_value}\n")
 
 
@@ -437,27 +441,21 @@ def run_automatic(mode, n_processes, spacing):
     simulation_count = 0
     valid_parameters = np.empty((0, 2), dtype=int)
 
-    if os.path.exists(results_filename):
-        os.remove(results_filename)
-
     parameters = [(v0, alpha, mode) for v0 in v0_range for alpha in alpha_range]
 
     with Pool(n_processes) as pool:
         for v0, alpha, success in pool.imap(run_simulation_wrapper, parameters):
-            print(
-                "Sucessos: {} | Simulações: {}".format(success_count, simulation_count),
-                end="\r",
-            )
             simulation_count += 1
             if success:
                 success_count += 1
                 valid_parameters = np.append(valid_parameters, [[v0, alpha]], axis=0)
 
-    print(
-        "Sucessos: {} | Simulações: {}".format(success_count, simulation_count),
-        end="\r",
-    )
-    print(Fore.GREEN + f"Sucessos: {success_count}" + Fore.RESET)
+            print(
+                "Sucessos: {} | Simulações: {}".format(success_count, simulation_count),
+                end="\r",
+            )
+
+    print(Fore.GREEN + f"Simulação concluida com {success_count} simulações aceites!" + Fore.RESET)
 
 
 def check_parameters(v0, alpha, mode):
@@ -518,7 +516,11 @@ def handle_simulation_mode(user_input):
             print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
             exit(1)
 
-        print("\n" + "Número de processos concurrentes: " + str(n_processes))
+        print("\n" + "Número de processos concurrentes: " + str(n_processes) + "\n")
+
+        if os.path.exists(results_file):
+            print(Fore.RED + "A apagar ficheiro de resultados já existente!!" + Fore.RESET + "\n")
+            os.remove(results_file)
 
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
         run_automatic(mode, int(n_processes), int(spacing))
