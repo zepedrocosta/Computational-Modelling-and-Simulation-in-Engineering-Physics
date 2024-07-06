@@ -1,5 +1,6 @@
 import math
 from multiprocessing import Pool
+import os
 from colorama import Fore
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,6 +24,7 @@ x = 0.0  # horizontal position (m)
 y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
+results_filename = "accepted_simulations.tsv"
 
 
 def calc_v0_components(v0, alpha):
@@ -413,7 +415,13 @@ def run_simulation(v0, alpha, mode):
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
+            save_info_to_file(v0, alpha, h_distance, final_velocity, g_value)
     return success
+
+
+def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
+    with open(results_filename, "a") as file:
+        file.write(f"{v0}\t{alpha}\t{distance}\t{final_velocity}\t{g_value}\n")
 
 
 def run_simulation_wrapper(params):
@@ -428,6 +436,9 @@ def run_automatic(mode, n_processes, spacing):
     success_count = 0
     simulation_count = 0
     valid_parameters = np.empty((0, 2), dtype=int)
+
+    if os.path.exists(results_filename):
+        os.remove(results_filename)
 
     parameters = [(v0, alpha, mode) for v0 in v0_range for alpha in alpha_range]
 
@@ -476,11 +487,11 @@ def handle_simulation_mode(user_input):
             + "Por favor insira o espaçamento entre os valores de v0 (default = 100): "
             + Fore.RESET
         )
-        if not spacing.isdigit() or int(spacing) <= 0 or int(spacing) > 15000:
-            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
-            exit(1)
         if spacing == "":
             spacing = 100
+        elif not spacing.isdigit() or int(spacing) <= 0 or int(spacing) > 15000:
+            print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
+            exit(1)
         print("Espaçamento entre os valores de v0: " + str(spacing) + "\n")
 
         n_simulations = calculate_number_of_simulations(int(spacing))
@@ -497,15 +508,15 @@ def handle_simulation_mode(user_input):
             + "Por favor insira o número de processos menor que o número de simulações a correr (default = 5): "
             + Fore.RESET
         )
-        if (
+        if n_processes == "":
+            n_processes = 5
+        elif (
             not n_processes.isdigit()
             or int(n_processes) <= 0
             or int(n_processes) > n_simulations
         ):
             print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
             exit(1)
-        if n_processes == "":
-            n_processes = 5
 
         print("\n" + "Número de processos concurrentes: " + str(n_processes))
 
