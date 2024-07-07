@@ -297,7 +297,7 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
                 print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n")
             deploy_position = (x, y)
             drag_coefficient += Cdp
-            area += Ap
+            area = Ap
             parachute = True
 
         Fd = drag_force(v, rho, drag_coefficient, area)
@@ -305,9 +305,9 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
 
         ax = Fd * np.cos(math.atan2(vy, vx)) / m
         if parachute:
-            ay = (Fd * np.sin(math.atan2(vy, vx))) / m - g
+            ay = ((Fd * np.sin(math.atan2(vy, vx))) / m) - g
         else:
-            ay = (Fd * np.sin(math.atan2(vy, vx)) + Fl) / m - g
+            ay = ((Fd * np.sin(math.atan2(vy, vx)) + Fl) / m) - g
 
         vx += ax * dt
         vy += ay * dt
@@ -471,7 +471,7 @@ def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
     plt.show()
 
 
-def run_simulation(v0, alpha, mode):
+def simulation_handler(v0, alpha, mode):
     """
     Run the simulation
 
@@ -573,7 +573,7 @@ def run_simulation_wrapper(params):
         True if the simulation is accepted, False otherwise
     """
     v0, alpha, mode = params
-    return v0, alpha, run_simulation(v0, alpha, mode)
+    return v0, alpha, simulation_handler(v0, alpha, mode)
 
 
 def run_automatic(mode, n_processes, spacing):
@@ -743,16 +743,16 @@ def handle_simulation_mode(user_input):
         check_parameters(v0, alpha, mode)
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
         print_parameters(int(v0), int(alpha))
-        run_simulation(int(v0), int(alpha), mode)
+        simulation_handler(int(v0), int(alpha), mode)
     elif user_input == "3":
         mode = "fast"
         print(Fore.MAGENTA + "Modo rápido selecionado." + "\n" + Fore.RESET)
-        v0 = 11000
-        alpha = 6
+        v0 = 8000
+        alpha = 1
         check_parameters(v0, alpha, mode)
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
         print_parameters(int(v0), int(alpha))
-        run_simulation(v0, alpha, mode)
+        simulation_handler(v0, alpha, mode)
     else:
         print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
         exit(1)
@@ -770,7 +770,7 @@ def main():
     print("Insira o modo de simulação:" + "\n" + Fore.RESET)
     print(Fore.BLUE + "1 - Automático:")
     print(
-        "Este modo executará todos os valores para v0 entre 0 e 15000 m/s e todos os valores para alpha entre 0 e 15 graus."
+        "Este modo executará os valores para v0 entre 0 e 15000 m/s com espaçamento e todos os valores para alpha entre 0 e 15 graus."
     )
     print(Fore.GREEN + "2 - Manual")
     print("Este modo solicitará os valores de v0 e alpha.")
