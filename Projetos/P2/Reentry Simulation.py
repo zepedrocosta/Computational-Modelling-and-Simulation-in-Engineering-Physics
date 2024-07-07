@@ -25,8 +25,8 @@ y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
 
-results_file = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "accepted_simulations.tsv"
+results_file_forward = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "accepted_simulations_forward_method.tsv"
 )
 
 
@@ -243,7 +243,7 @@ def print_parameters(v0, alpha):
     print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
 
 
-def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
+def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
     """
     Forward method simulation
 
@@ -493,7 +493,7 @@ def simulation_handler(v0, alpha, mode):
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
-    positions, velocities, time, deploy_position = simulation(
+    positions, velocities, time, deploy_position = forward_simulation(
         v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode
     )
 
@@ -550,7 +550,7 @@ def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
     g_value : float
         The g value
     """
-    with open(results_file, "a") as file:
+    with open(results_file_forward, "a") as file:
         file.write(f"{v0}\t{alpha}\t{distance}\t{final_velocity}\t{g_value}\n")
 
 
@@ -720,14 +720,14 @@ def handle_simulation_mode(user_input):
 
         print("Número de processos concurrentes: " + str(n_processes) + "\n")
 
-        if os.path.exists(results_file):
+        if os.path.exists(results_file_forward):
             print(
                 Fore.RED
                 + "A apagar ficheiro de resultados já existente!!"
                 + Fore.RESET
                 + "\n"
             )
-            os.remove(results_file)
+            os.remove(results_file_forward)
 
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
         run_automatic(mode, int(n_processes), int(spacing))

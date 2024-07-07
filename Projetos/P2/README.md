@@ -28,7 +28,7 @@ The project involves modeling the reentry of a space module into the Earth's atm
 
 ### Steps to Proceed
 
-#### Step 1: Implement the Air Density Models DONE
+#### Step 1: Implement the Air Density Models **DONE**
 
 You need to implement two methods to estimate air density:
 
@@ -39,7 +39,7 @@ You need to implement two methods to estimate air density:
 2. **Cubic Spline:**
    - Use `scipy.interpolate.CubicSpline` to create a cubic spline interpolation of the data.
 
-#### Step 2: Implement Forward Simulation
+#### Step 2: Implement Forward Simulation **DONE**
 
 Create a Python script to perform the forward simulation. You will need to:
 
