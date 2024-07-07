@@ -1,10 +1,12 @@
 import math
 import os
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from multiprocessing import Pool
 from colorama import Fore
+from scipy.optimize import fsolve
 
 """
 SMCEF - 2024 - P2 - Reentry of a Space Capsule
@@ -26,7 +28,8 @@ Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
 
 results_file_forward = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "accepted_simulations_forward_method.tsv"
+    os.path.dirname(os.path.abspath(__file__)),
+    "accepted_simulations_forward_method.tsv",
 )
 
 
@@ -327,7 +330,48 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
             Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
         )
 
-    return positions, velocities, time, deploy_position
+    return positions, velocities, time, deploy_position, parachute
+
+
+def backward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
+    """
+    Backward method simulation using Euler's method
+
+    Parameters
+    ----------
+    vx : float
+        The initial horizontal velocity
+    vy : float
+        The initial vertical velocity
+    x : float
+        The initial horizontal position
+    y : float
+        The initial altitude
+    Cd : float
+        The drag coefficient
+    Cl : float
+        The lift coefficient
+    A : float
+        The cross-sectional area
+    Cdp : float
+        The drag coefficient of the parachute
+    Ap : float
+        The cross-sectional area of the parachute
+    mode : str
+        The mode of the simulation
+    
+    Returns
+    -------
+    positions_backward : list
+        The positions of the object
+    velocities_backward : list
+        The velocities of the object
+    time_backward : float
+        The time of the simulation
+    deploy_position : tuple
+        The deploy position of the parachute
+    """
+    # return positions_backward, velocities_backward, time, deploy_position, parachute
 
 
 def calculate_horizontal_distance(x, y, mode):
@@ -438,7 +482,7 @@ def calculate_final_velocity(vx, vy, mode):
     return final_velocity
 
 
-def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
+def plot_trajectory_x_y(x_forward, y_forward, deploy_position, v0, alpha):
     """
     Plot the trajectory of the object
 
@@ -470,6 +514,64 @@ def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
     plt.title(f"Trajetória de reentrada | v0 = {v0} m/s | alpha = {alpha} graus")
     plt.show()
 
+def plot_trajectory_time_y(x_forward, y_forward, time, deploy_position):
+    """
+    Plot the trajectory of the object
+
+    Parameters
+    ----------
+    x_forward : list
+        The horizontal positions
+    y_forward : list
+        The altitudes
+    time : float
+        The time of the simulation
+    deploy_position : tuple
+        The deploy position of the parachute
+    """
+    n = len(x_forward)
+    time_range = np.linspace(0, time, n)
+
+    plt.figure()
+    plt.plot(time_range, y_forward, label="Forward Method")
+    if deploy_position:
+        plt.plot(
+            time_range[-1],
+            deploy_position[1] / 1000,
+            "ro",
+            label="Deploy Position",
+        )
+    plt.xlabel("Tempo (s)")
+    plt.ylabel("Altitude (km)")
+    plt.legend()
+    plt.title("Trajetória de reentrada")
+    plt.show()
+
+def plot_velocities(vx, vy, time):
+    """
+    Plot the velocities of the object
+
+    Parameters
+    ----------
+    vx : list
+        The horizontal velocities
+    vy : list
+        The vertical velocities
+    time : float
+        The time of the simulation
+    """
+    n = len(vx)
+    time_range = np.linspace(0, time, n)
+
+    plt.figure()
+    plt.plot(time_range, vx, label="Vx")
+    plt.plot(time_range, vy, label="Vy")
+    plt.xlabel("Tempo (s)")
+    plt.ylabel("Velocidade (m/s)")
+    plt.legend()
+    plt.title("Velocidades do objeto")
+    plt.show()
+
 
 def simulation_handler(v0, alpha, mode):
     """
@@ -493,9 +595,17 @@ def simulation_handler(v0, alpha, mode):
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
-    positions, velocities, time, deploy_position = forward_simulation(
+    positions, velocities, time, deploy_position, parachute = forward_simulation(
         v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode
     )
+
+    # (
+    #     positions_backward,
+    #     velocities_backward,
+    #     time_backward,
+    #     deploy_position_backward,
+    #     parachute_backward,
+    # ) = backward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
 
     x_forward, y_forward = zip(*positions)
 
@@ -517,6 +627,7 @@ def simulation_handler(v0, alpha, mode):
         or g_value <= 1
         or final_velocity >= 25
         or final_velocity <= 0
+        or not parachute
     ):
         success = False
 
@@ -524,7 +635,13 @@ def simulation_handler(v0, alpha, mode):
         save_info_to_file(v0, alpha, h_distance, final_velocity, g_value)
 
     if mode == "manual" or mode == "fast":
-        plot_trajectory(x_forward_km, y_forward_km, deploy_position, v0, alpha)
+        # plot_trajectory_x_y(x_forward_km, y_forward_km, deploy_position, v0, alpha)
+        plot_trajectory_time_y(x_forward_km, y_forward_km, time, deploy_position)
+        plot_velocities(
+            [velocity[0] for velocity in velocities],
+            [velocity[1] for velocity in velocities],
+            time,
+        )
         if not success:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
@@ -598,6 +715,7 @@ def run_automatic(mode, n_processes, spacing):
     valid_parameters : numpy array
         The valid parameters
     """
+    start = time.time()
     v0_range = list(range(0, 15001, spacing))
     alpha_range = list(range(16))
 
@@ -618,10 +736,16 @@ def run_automatic(mode, n_processes, spacing):
                 "Sucessos: {} | Simulações: {}".format(success_count, simulation_count),
                 end="\r",
             )
-
+    end = time.time()
+    elapsed_time = end - start
     print(
         Fore.GREEN
         + f"Simulação concluida com {success_count} simulações aceites!"
+        + Fore.RESET
+    )
+    print(
+        Fore.YELLOW
+        + f"Tempo total de execução: {elapsed_time / 60} minutos"
         + Fore.RESET
     )
 
