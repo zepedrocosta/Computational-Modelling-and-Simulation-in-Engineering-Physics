@@ -29,6 +29,7 @@ results_file = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "accepted_simulations.tsv"
 )
 
+
 def calc_v0_components(v0, alpha):
     """
     Calculate the initial horizontal and vertical velocities
@@ -53,32 +54,6 @@ def calc_v0_components(v0, alpha):
     vy = -(v0 * math.sin(alphaRad))  # Initial vertical velocity
 
     return vx, vy
-
-
-def get_info_from_file(filename):
-    """
-    Get density and altitude from a file
-
-    Parameters
-    ----------
-    filename : str
-        The name of the file to be read
-
-    Returns
-    -------
-    altitude : numpy array
-        The altitude values
-    density : numpy array
-        The density values
-    """
-    altitude = np.array([])
-    density = np.array([])
-    with open(filename, "r") as file:
-        for line in file:
-            values = line.strip().split("\t")
-            altitude = np.append(altitude, float(values[0]))
-            density = np.append(density, float(values[1]))
-    return altitude, density
 
 
 def exponential_model(x, A, B):
@@ -146,8 +121,6 @@ def air_density(altitude):
     ----------
     altitude : float
         The altitude
-    filename : str
-        The name of the file to be read
 
     Returns
     -------
@@ -223,7 +196,7 @@ def drag_force(v, rho, Cd, A):
         The drag coefficient
     A : float
         The cross-sectional area
-    
+
     Returns
     -------
     float
@@ -235,7 +208,7 @@ def drag_force(v, rho, Cd, A):
 def lift_force(v, rho, Cl, A):
     """
     Calculate the lift force
-    
+
     Parameters
     ----------
     v : float
@@ -246,7 +219,7 @@ def lift_force(v, rho, Cl, A):
         The lift coefficient
     A : float
         The cross-sectional area
-        
+
     Returns
     -------
     float
@@ -270,10 +243,10 @@ def print_parameters(v0, alpha):
     print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
 
 
-def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
+def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
     """
     Forward method simulation
-    
+
     Parameters
     ----------
     vx : float
@@ -294,11 +267,9 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
         The drag coefficient of the parachute
     Ap : float
         The cross-sectional area of the parachute
-    filename : str
-        The name of the file to be read
     mode : str
         The mode of the simulation
-        
+
     Returns
     -------
     positions : list
@@ -317,9 +288,9 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
     area = A
     parachute = False
     deploy_position = None
-    for i in range(int(5000 / dt)):
+    for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
-        rho = air_density(y, filename)
+        rho = air_density(y)
 
         if y <= 1000 and v <= 100 and not parachute:
             if mode == "manual" or mode == "fast":
@@ -362,7 +333,7 @@ def simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, filename, mode):
 def calculate_horizontal_distance(x, y, mode):
     """
     Calculate the horizontal distance
-    
+
     Parameters
     ----------
     x : list
@@ -371,7 +342,7 @@ def calculate_horizontal_distance(x, y, mode):
         The altitudes
     mode : str
         The mode of the simulation
-        
+
     Returns
     -------
     distance : float
@@ -441,7 +412,7 @@ def calculate_g_value(velocities, time, mode):
 def calculate_final_velocity(vx, vy, mode):
     """
     Calculate the final velocity
-    
+
     Parameters
     ----------
     vx : float
@@ -450,12 +421,12 @@ def calculate_final_velocity(vx, vy, mode):
         The final vertical velocity
     mode : str
         The mode of the simulation
-    
+
     Returns
     -------
     final_velocity : float
         The final velocity of the object
-        """
+    """
     final_velocity = math.sqrt(vx**2 + vy**2)
 
     if mode == "manual" or mode == "fast":
@@ -470,7 +441,7 @@ def calculate_final_velocity(vx, vy, mode):
 def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
     """
     Plot the trajectory of the object
-    
+
     Parameters
     ----------
     x_forward : list
@@ -503,7 +474,7 @@ def plot_trajectory(x_forward, y_forward, deploy_position, v0, alpha):
 def run_simulation(v0, alpha, mode):
     """
     Run the simulation
-    
+
     Parameters
     ----------
     v0 : float
@@ -512,19 +483,18 @@ def run_simulation(v0, alpha, mode):
         The downward angle with the horizon
     mode : str
         The mode of the simulation
-    
+
     Returns
     -------
     success : bool
-        True if the simulation is accepted, False otherwise
+        True if the simulation is valid, False otherwise
     """
-    filename = "Projetos/P2/airdensity - students.txt"
     success = True
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
     positions, velocities, time, deploy_position = simulation(
-        v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, filename, mode
+        v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode
     )
 
     x_forward, y_forward = zip(*positions)
@@ -537,11 +507,12 @@ def run_simulation(v0, alpha, mode):
     final_velocity = calculate_final_velocity(
         velocities[-1][0], velocities[-1][1], mode
     )
-    
-    g_value = calculate_g_value(velocities, time, mode)
+
+    total_acceleration, g_value = calculate_g_value(velocities, time, mode)
 
     if (
-        (h_distance <= 2500 or h_distance >= 4500)
+        h_distance <= 2500
+        or h_distance >= 4500
         or g_value >= 15
         or g_value <= 1
         or final_velocity >= 25
@@ -561,10 +532,11 @@ def run_simulation(v0, alpha, mode):
 
     return success
 
+
 def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
     """
     Save the information to a file
-    
+
     Parameters
     ----------
     v0 : float
@@ -585,12 +557,12 @@ def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
 def run_simulation_wrapper(params):
     """
     Wrapper for the simulation function
-    
+
     Parameters
     ----------
     params : tuple
         The parameters of the simulation
-        
+
     Returns
     -------
     v0 : float
@@ -607,7 +579,7 @@ def run_simulation_wrapper(params):
 def run_automatic(mode, n_processes, spacing):
     """
     Run the simulation in automatic mode
-    
+
     Parameters
     ----------
     mode : str
@@ -616,7 +588,7 @@ def run_automatic(mode, n_processes, spacing):
         The number of processes to run concurrently
     spacing : int
         The spacing between the values of v0
-    
+
     Returns
     -------
     success_count : int
@@ -647,13 +619,17 @@ def run_automatic(mode, n_processes, spacing):
                 end="\r",
             )
 
-    print(Fore.GREEN + f"Simulação concluida com {success_count} simulações aceites!" + Fore.RESET)
+    print(
+        Fore.GREEN
+        + f"Simulação concluida com {success_count} simulações aceites!"
+        + Fore.RESET
+    )
 
 
 def check_parameters(v0, alpha, mode):
     """
     Check if the parameters are valid
-    
+
     Parameters
     ----------
     v0 : str
@@ -662,15 +638,6 @@ def check_parameters(v0, alpha, mode):
         The downward angle with the horizon
     mode : str
         The mode of the simulation
-        
-    Returns
-    -------
-    None
-    
-    Raises
-    ------
-    ValueError
-        If the parameters are invalid
     """
     if mode == "manual":
         if not v0.isdigit() or not alpha.isdigit():
@@ -684,18 +651,18 @@ def check_parameters(v0, alpha, mode):
 def calculate_number_of_simulations(n):
     """
     Calculate the number of simulations
-    
+
     Parameters
     ----------
     n : int
         The spacing between the values of v0
-    
+
     Returns
     -------
     simulation_count : int
         The number of simulations
-            
-                """
+
+    """
     v0_range_length = 15000 // n + 1
     alpha_range_length = 16
     simulation_count = v0_range_length * alpha_range_length
@@ -705,20 +672,11 @@ def calculate_number_of_simulations(n):
 def handle_simulation_mode(user_input):
     """
     Handle the simulation mode
-    
+
     Parameters
     ----------
     user_input : str
         The user input
-        
-    Returns
-    -------
-    None
-    
-    Raises
-    ------
-    ValueError
-        If the input is invalid
     """
     if user_input == "1":
         mode = "automatic"
@@ -760,10 +718,15 @@ def handle_simulation_mode(user_input):
             print(Fore.RED + "Input inválido!!" + Fore.RESET + "\n")
             exit(1)
 
-        print("\n" + "Número de processos concurrentes: " + str(n_processes) + "\n")
+        print("Número de processos concurrentes: " + str(n_processes) + "\n")
 
         if os.path.exists(results_file):
-            print(Fore.RED + "A apagar ficheiro de resultados já existente!!" + Fore.RESET + "\n")
+            print(
+                Fore.RED
+                + "A apagar ficheiro de resultados já existente!!"
+                + Fore.RESET
+                + "\n"
+            )
             os.remove(results_file)
 
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
@@ -798,10 +761,6 @@ def handle_simulation_mode(user_input):
 def main():
     """
     Main function
-    
-    Returns
-    -------
-    None
     """
     print(
         Fore.MAGENTA
@@ -829,9 +788,5 @@ def main():
 if __name__ == "__main__":
     """
     Run the main function
-    
-    Returns
-    -------
-    None
     """
     main()
