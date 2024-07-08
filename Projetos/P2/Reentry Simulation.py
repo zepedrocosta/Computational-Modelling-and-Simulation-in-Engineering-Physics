@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from multiprocessing import Pool
 from colorama import Fore
-from scipy.optimize import fsolve
 
 """
 SMCEF - 2024 - P2 - Reentry of a Space Capsule
@@ -16,7 +15,7 @@ SMCEF - 2024 - P2 - Reentry of a Space Capsule
 """
 
 # Constants
-g = 10  # gravitational acceleration (m/s^2)
+g0 = 10  # gravitational acceleration (m/s^2)
 Cd = 1.2  # drag coefficient
 Cl = 1.0  # lift coefficient
 A = 4 * np.pi  # cross-sectional area (m^2)
@@ -26,6 +25,7 @@ x = 0.0  # horizontal position (m)
 y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
+R_earth = 6371  # Earth's radius (km)
 
 results_file_forward = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -231,6 +231,24 @@ def lift_force(v, rho, Cl, A):
     return 0.5 * Cl * A * rho * v**2
 
 
+def calculate_accelaration_due_to_gravity(y):
+    """
+    Calculate the acceleration due to gravity
+
+    Parameters
+    ----------
+    y : float
+        The altitude
+
+    Returns
+    -------
+    float
+        The acceleration due to gravity
+    """
+    R_earth_m = R_earth * 1000
+    return g0 * (R_earth_m / (R_earth_m + y)) ** 2
+
+
 def print_parameters(v0, alpha):
     """
     Print the initial parameters
@@ -294,6 +312,7 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
     for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
         rho = air_density(y)
+        g = calculate_accelaration_due_to_gravity(y)
 
         if y <= 1000 and v <= 100 and not parachute:
             if mode == "manual" or mode == "fast":
@@ -359,19 +378,74 @@ def backward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
         The cross-sectional area of the parachute
     mode : str
         The mode of the simulation
-    
+
     Returns
     -------
-    positions_backward : list
+    positions : list
         The positions of the object
-    velocities_backward : list
+    velocities : list
         The velocities of the object
     time_backward : float
         The time of the simulation
     deploy_position : tuple
         The deploy position of the parachute
     """
-    # return positions_backward, velocities_backward, time, deploy_position, parachute
+    time = 0
+    positions = [(x, y)]
+    velocities = [(vx, vy)]
+    drag_coefficient = Cd
+    area = A
+    parachute = False
+    deploy_position = None
+
+    for _ in range(int(5000 / dt)):
+        vx_next, vy_next = vx, vy
+        x_next, y_next = x, y
+
+        for _ in range(10):  # Iteratively solve for the next velocities
+            v_next = np.sqrt(vx_next**2 + vy_next**2)
+            rho = air_density(y_next)
+            g = calculate_accelaration_due_to_gravity(y)
+
+            if y_next <= 1000 and v_next <= 100 and not parachute:
+                if mode == "manual" or mode == "fast":
+                    print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n")
+                deploy_position = (x_next, y_next)
+                drag_coefficient = Cd + Cdp
+                area = Ap
+                parachute = True
+
+            Fd = drag_force(v_next, rho, drag_coefficient, area)
+            Fl = lift_force(v_next, rho, Cl, area)
+
+            ax_next = Fd * np.cos(math.atan2(vy_next, vx_next)) / m
+            if parachute:
+                ay_next = ((Fd * np.sin(math.atan2(vy_next, vx_next))) / m) - g
+            else:
+                ay_next = ((Fd * np.sin(math.atan2(vy_next, vx_next)) + Fl) / m) - g
+
+            vx_next = vx + ax_next * dt
+            vy_next = vy + ay_next * dt
+            x_next = x + vx_next * dt
+            y_next = y + vy_next * dt
+
+        vx, vy = vx_next, vy_next
+        x, y = x_next, y_next
+
+        positions.append((x, y))
+        velocities.append((vx, vy))
+
+        time += dt
+
+        if y <= 0:
+            break
+
+    if mode == "manual" or mode == "fast":
+        print(
+            Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
+        )
+
+    return positions, velocities, time, deploy_position, parachute
 
 
 def calculate_horizontal_distance(x, y, mode):
@@ -392,7 +466,6 @@ def calculate_horizontal_distance(x, y, mode):
     distance : float
         The horizontal distance
     """
-    R_earth = 6371
     theta = 0
     n = len(x)
 
@@ -442,7 +515,7 @@ def calculate_g_value(velocities, time, mode):
         ay_i = (vy_i - vy_i_1) / dt
         total_acceleration += math.sqrt(ax_i**2 + ay_i**2)
 
-    g_value = total_acceleration / time / g
+    g_value = total_acceleration / time / g0
 
     if mode == "manual" or mode == "fast":
         if g_value >= 15 or g_value <= 1:
@@ -514,6 +587,7 @@ def plot_trajectory_x_y(x_forward, y_forward, deploy_position, v0, alpha):
     plt.title(f"Trajetória de reentrada | v0 = {v0} m/s | alpha = {alpha} graus")
     plt.show()
 
+
 def plot_trajectory_time_y(x_forward, y_forward, time, deploy_position):
     """
     Plot the trajectory of the object
@@ -546,6 +620,7 @@ def plot_trajectory_time_y(x_forward, y_forward, time, deploy_position):
     plt.legend()
     plt.title("Trajetória de reentrada")
     plt.show()
+
 
 def plot_velocities(vx, vy, time):
     """
@@ -591,63 +666,76 @@ def simulation_handler(v0, alpha, mode):
     success : bool
         True if the simulation is valid, False otherwise
     """
-    success = True
+    success_forward = True
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
-    positions, velocities, time, deploy_position, parachute = forward_simulation(
-        v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode
-    )
+    (
+        positions_forward,
+        velocities_forward,
+        time_forward,
+        deploy_position_forward,
+        parachute_forward,
+    ) = forward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
 
-    # (
-    #     positions_backward,
-    #     velocities_backward,
-    #     time_backward,
-    #     deploy_position_backward,
-    #     parachute_backward,
-    # ) = backward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
+    (
+        positions_backward,
+        velocities_backward,
+        time_backward,
+        deploy_position_backward,
+        parachute_backward,
+    ) = backward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
 
-    x_forward, y_forward = zip(*positions)
+    x_forward, y_forward = zip(*positions_forward)
+    x_backward, y_backward = zip(*positions_backward)
 
     x_forward_km = [distance / 1000 for distance in x_forward]
     y_forward_km = [altitude / 1000 for altitude in y_forward]
+    x_backward_km = [distance / 1000 for distance in x_backward]
+    y_backward_km = [altitude / 1000 for altitude in y_backward]
 
-    h_distance = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
+    h_distance_forward = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
 
-    final_velocity = calculate_final_velocity(
-        velocities[-1][0], velocities[-1][1], mode
+    final_velocity_forward = calculate_final_velocity(
+        velocities_forward[-1][0], velocities_forward[-1][1], mode
     )
 
-    total_acceleration, g_value = calculate_g_value(velocities, time, mode)
+    total_acceleration_forward, g_value_forward = calculate_g_value(
+        velocities_forward, time_forward, mode
+    )
 
     if (
-        h_distance <= 2500
-        or h_distance >= 4500
-        or g_value >= 15
-        or g_value <= 1
-        or final_velocity >= 25
-        or final_velocity <= 0
-        or not parachute
+        h_distance_forward <= 2500
+        or h_distance_forward >= 4500
+        or g_value_forward >= 15
+        or g_value_forward <= 1
+        or final_velocity_forward >= 25
+        or final_velocity_forward <= 0
+        or not parachute_forward
     ):
-        success = False
+        success_forward = False
 
-    if success:
-        save_info_to_file(v0, alpha, h_distance, final_velocity, g_value)
+    if success_forward:
+        save_info_to_file(
+            v0, alpha, h_distance_forward, final_velocity_forward, g_value_forward
+        )
 
     if mode == "manual" or mode == "fast":
         # plot_trajectory_x_y(x_forward_km, y_forward_km, deploy_position, v0, alpha)
-        plot_trajectory_time_y(x_forward_km, y_forward_km, time, deploy_position)
-        plot_velocities(
-            [velocity[0] for velocity in velocities],
-            [velocity[1] for velocity in velocities],
-            time,
+        plot_trajectory_time_y(
+            x_forward_km, y_forward_km, time_forward, deploy_position_forward
         )
-        if not success:
+        plot_velocities(
+            [velocity[0] for velocity in velocities_forward],
+            [velocity[1] for velocity in velocities_forward],
+            time_forward,
+        )
+        if not success_forward:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
 
-    return success
+    return success_forward
 
 
 def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
