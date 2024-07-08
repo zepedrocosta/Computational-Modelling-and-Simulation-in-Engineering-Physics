@@ -316,7 +316,7 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
 
         if y <= 1000 and v <= 100 and not parachute:
             if mode == "manual" or mode == "fast":
-                print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n")
+                print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n") # indicar que é a forward
             deploy_position = (x, y)
             drag_coefficient += Cdp
             area = Ap
@@ -409,7 +409,7 @@ def backward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
 
             if y_next <= 1000 and v_next <= 100 and not parachute:
                 if mode == "manual" or mode == "fast":
-                    print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n")
+                    print(Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n") #indicar que é a backward
                 deploy_position = (x_next, y_next)
                 drag_coefficient = Cd + Cdp
                 area = Ap
@@ -588,7 +588,7 @@ def plot_trajectory_x_y(x_forward, y_forward, deploy_position, v0, alpha):
     plt.show()
 
 
-def plot_trajectory_time_y(x_forward, y_forward, time, deploy_position):
+def plot_trajectory_time_y(x_forward, y_forward, time, deploy_position): #plot_trajectory_forward_time_y
     """
     Plot the trajectory of the object
 
@@ -622,7 +622,7 @@ def plot_trajectory_time_y(x_forward, y_forward, time, deploy_position):
     plt.show()
 
 
-def plot_velocities(vx, vy, time):
+def plot_velocities(vx, vy, time): #plot_velocities_forward
     """
     Plot the velocities of the object
 
@@ -647,6 +647,62 @@ def plot_velocities(vx, vy, time):
     plt.title("Velocidades do objeto")
     plt.show()
 
+# def plot_trajectory_backward_time_y(x_backward, y_backward, deploy_position, v0, alpha):
+#   """
+#   Plot the trajectory of the object
+
+#   Parameters
+#   ----------
+#   x_backward : list
+#       The horizontal positions
+#   y_backward : list
+#       The altitudes
+#   deploy_position : tuple
+#       The deploy position of the parachute
+#   v0 : float
+
+#   alpha : float
+#       The downward angle with the horizon
+#   """
+#   plt.figure()
+#   plt.plot(x_backward, y_backward, label="Backward Method")
+#   if deploy_position:
+#       plt.plot(
+#           deploy_position[0] / 1000,
+#           deploy_position[1] / 1000,
+#           "ro",
+#           label="Deploy Position",
+#       )
+#   plt.xlabel("Distância horizontal (km)")
+#   plt.ylabel("Altitude (km)")
+#   plt.legend()
+#   plt.title(f"Trajetória de reentrada")
+#   plt.show()
+
+# def plot_velocities_backward(vx, vy, time_backward):
+#   """
+#   Plot the velocities of the object
+
+#   Parameters
+#   ----------
+#   vx : list
+#       The horizontal velocities
+#   vy : list
+#       The vertical velocities
+#   time_backward : float
+#       The time of the simulation
+#   """
+#   n = len(vx)
+#   time_range = np.linspace(0, time_backward, n)
+
+#   plt.figure()
+#   plt.plot(time_range, vx, label="Vx")
+#   plt.plot(time_range, vy, label="Vy")
+#   plt.xlabel("Tempo (s)")
+#   plt.ylabel("Velocidade (m/s)")
+#   plt.legend()
+#   plt.title("Velocidades do objeto")
+#   plt.show()
 
 def simulation_handler(v0, alpha, mode):
     """
@@ -715,22 +771,44 @@ def simulation_handler(v0, alpha, mode):
     ):
         success_forward = False
 
+    # if (
+    #    h_distance_backward <= 2500    
+    #    or h_distance_backward >= 4500
+    #    or g_value_backward >= 15
+    #    or g_value_backward <= 1
+    #    or final_velocity_backward >= 25
+    #    or final_velocity_backward <= 0
+    #    or not parachute_backward
+    #):
+    #    success_backward = False
+    
     if success_forward:
         save_info_to_file(
             v0, alpha, h_distance_forward, final_velocity_forward, g_value_forward
         )
 
+    # if success_backward:
+    #   save_info_to_file(
+    #       v0, alpha, h_distance_backward, final_velocity_backward, g_value_backward
+    #   )
+    
     if mode == "manual" or mode == "fast":
         # plot_trajectory_x_y(x_forward_km, y_forward_km, deploy_position, v0, alpha)
-        plot_trajectory_time_y(
+        plot_trajectory_time_y( #plot_trajectory_forward_time_y
             x_forward_km, y_forward_km, time_forward, deploy_position_forward
         )
-        plot_velocities(
+        # plot_trajectory_backward_x_y(x_backward_km, y_backward_km, deploy_position, v0, alpha)
+        plot_velocities( # plot_velocities_forward
             [velocity[0] for velocity in velocities_forward],
             [velocity[1] for velocity in velocities_forward],
             time_forward,
         )
-        if not success_forward:
+        # plot_velocities_backward(
+        #   [velocity[0] for velocity in velocities_backward],
+        #   [velocity[1] for velocity in velocities_backward],
+        #   time_backward,
+        # )
+        if not success_forward: #or not success_backward:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
