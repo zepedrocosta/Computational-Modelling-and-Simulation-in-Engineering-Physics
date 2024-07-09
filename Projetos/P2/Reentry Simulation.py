@@ -34,6 +34,16 @@ results_file_forward = os.path.join(
     "accepted_simulations_forward_method.tsv",
 )
 
+results_file_backward = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "accepted_simulations_backward_method.tsv",
+)
+
+results_file_forward_and_backward = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "accepted_simulations_forward_and_backward_method.tsv",
+)
+
 
 def calc_v0_components(v0, alpha):
     """
@@ -207,7 +217,7 @@ def drag_force(v, rho, Cd, A):
     float
         The drag force
     """
-    return -0.5 * Cd * A * rho * v**2
+    return -0.5 * Cd * A * rho * v
 
 
 def lift_force(v, rho, Cl, A):
@@ -233,7 +243,7 @@ def lift_force(v, rho, Cl, A):
     return 0.5 * Cl * A * rho * v**2
 
 
-def calculate_accelaration_due_to_gravity(y):
+def calculate_acceleration_due_to_gravity(y):
     """
     Calculate the acceleration due to gravity
 
@@ -267,7 +277,7 @@ def print_parameters(v0, alpha):
     print(Fore.GREEN + f"Ângulo de entrada: {alpha} graus" + Fore.RESET + "\n")
 
 
-def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
+def forward_simulation(vx, vy, x, y, mode):
     """
     Forward method simulation
 
@@ -308,6 +318,7 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
+    accelerations = [(0, 0)]
     drag_coefficient = Cd
     area = A
     parachute = False
@@ -315,12 +326,15 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
     for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
         rho = air_density(y)
-        g = calculate_accelaration_due_to_gravity(y)
+        g = calculate_acceleration_due_to_gravity(y)
 
         if y <= 1000 and v <= 100 and not parachute:
             if mode == "manual" or mode == "fast":
                 print(
-                    Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n"
+                    Fore.CYAN
+                    + "Abrindo paraquedas! (Forward Method)"
+                    + Fore.RESET
+                    + "\n"
                 )  # indicar que é a forward
             deploy_position = (x, y)
             drag_coefficient += Cdp
@@ -330,11 +344,11 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
         Fd = drag_force(v, rho, drag_coefficient, area)
         Fl = lift_force(v, rho, Cl, area)
 
-        ax = (Fd * vx) / (m * v)
+        ax = (Fd * vx) / (m)
         if parachute:
-            ay = ((Fd * vy) / (m * v)) - g
+            ay = ((Fd * vy) / (m)) - g
         else:
-            ay = ((Fd * vy) / (m * v)) + (Fl / m) - g
+            ay = ((Fd * vy) / (m)) + (Fl / m) - g
 
         vx += ax * dt
         vy += ay * dt
@@ -343,6 +357,7 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
 
         positions.append((x, y))
         velocities.append((vx, vy))
+        accelerations.append((ax, ay))
 
         time += dt
 
@@ -354,105 +369,92 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
             Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
         )
 
-    return positions, velocities, time, deploy_position, parachute
+    return positions, velocities, accelerations, time, deploy_position, parachute
 
 
-def backward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
-    """
-    Backward method simulation using Euler's method
-
-    Parameters
-    ----------
-    vx : float
-        The initial horizontal velocity
-    vy : float
-        The initial vertical velocity
-    x : float
-        The initial horizontal position
-    y : float
-        The initial altitude
-    Cd : float
-        The drag coefficient
-    Cl : float
-        The lift coefficient
-    A : float
-        The cross-sectional area
-    Cdp : float
-        The drag coefficient of the parachute
-    Ap : float
-        The cross-sectional area of the parachute
-    mode : str
-        The mode of the simulation
-
-    Returns
-    -------
-    positions : list
-        The positions of the object
-    velocities : list
-        The velocities of the object
-    time_backward : float
-        The time of the simulation
-    deploy_position : tuple
-        The deploy position of the parachute
-    """
+def backward_simulation(vx, vy, x, y, mode):
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
+    accelerations = [(0, 0)]
     drag_coefficient = Cd
     area = A
     parachute = False
     deploy_position = None
 
-    for _ in range(int(5000 / dt)):
-        vx_next, vy_next = vx, vy
-        x_next, y_next = x, y
+    def f(vx, vy, x, y, t, parachute):
+        v = math.sqrt(vx**2 + vy**2)
+        rho = air_density(y)
+        Fd = drag_force(v, rho, drag_coefficient, area)
+        Fl = lift_force(v, rho, Cl, area)
+        g = calculate_acceleration_due_to_gravity(y)
 
-        for _ in range(10):  # Iteratively solve for the next velocities
-            v_next = np.sqrt(vx_next**2 + vy_next**2)
-            rho = air_density(y_next)
-            g = calculate_accelaration_due_to_gravity(y)
+        ax = (Fd * vx) / (m)
+        if parachute:
+            ay = ((Fd * vy) / (m)) - g
+        else:
+            ay = ((Fd * vy) / (m)) + (Fl / m) - g
 
-            if y_next <= 1000 and v_next <= 100 and not parachute:
-                if mode == "manual" or mode == "fast":
-                    print(
-                        Fore.CYAN + "Abrindo paraquedas!" + Fore.RESET + "\n"
-                    )  # indicar que é a backward
-                deploy_position = (x_next, y_next)
-                drag_coefficient = Cd + Cdp
-                area = Ap
-                parachute = True
+        return ax, ay
 
-            Fd = drag_force(v_next, rho, drag_coefficient, area)
-            Fl = lift_force(v_next, rho, Cl, area)
+    while y > 0:
+        time += dt
 
-            ax_next = Fd * np.cos(math.atan2(vy_next, vx_next)) / m
-            if parachute:
-                ay_next = ((Fd * np.sin(math.atan2(vy_next, vx_next))) / m) - g
-            else:
-                ay_next = ((Fd * np.sin(math.atan2(vy_next, vx_next)) + Fl) / m) - g
+        v = math.sqrt(vx**2 + vy**2)
+        if y <= 1000 and v <= 100 and not parachute:
+            if mode == "manual" or mode == "fast":
+                print(
+                    Fore.CYAN
+                    + "Abrindo paraquedas! (Backward Method)"
+                    + Fore.RESET
+                    + "\n"
+                )  # indicar que é a forward
+            deploy_position = (x, y)
+            drag_coefficient += Cdp
+            area = Ap
+            parachute = True
 
-            vx_next = vx + ax_next * dt
-            vy_next = vy + ay_next * dt
-            x_next = x + vx_next * dt
-            y_next = y + vy_next * dt
+        x_prev, y_prev = x, y
+        vx_prev, vy_prev = vx, vy
 
-        vx, vy = vx_next, vy_next
+        ax_prev, ay_prev = f(vx_prev, vy_prev, x_prev, y_prev, time, parachute)
+
+        J = np.array([[1, 0, -dt, 0], [0, 1, 0, -dt], [0, 0, 1, 0], [0, 0, 0, 1]])
+
+        b = np.array(
+            [
+                x_prev + vx_prev * dt,
+                y_prev + vy_prev * dt,
+                vx_prev + ax_prev * dt,
+                vy_prev + ay_prev * dt,
+            ]
+        )
+
+        # Solve the system
+        result = np.linalg.solve(J, b)
+        x_next, y_next, vx_next, vy_next = result
+
         x, y = x_next, y_next
+        vx, vy = vx_next, vy_next
+
+        ax, ay = f(vx, vy, x, y, time, parachute)
 
         positions.append((x, y))
         velocities.append((vx, vy))
-
-        time += dt
+        accelerations.append((ax, ay))
 
         if y <= 0:
             break
 
-    if mode == "manual" or mode == "fast":
-        print(
-            Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
-        )
+        if mode == "manual" or mode == "fast":
+            print(
+                Fore.CYAN
+                + f"Tempo de reentrada: {time / 60} minutos"
+                + "\n"
+                + Fore.RESET
+            )
 
-    return positions, velocities, time, deploy_position, parachute
+    return positions, velocities, accelerations, time, deploy_position, parachute
 
 
 def calculate_horizontal_distance(x, y, mode):
@@ -521,7 +523,7 @@ def calculate_g_value(velocities, time, positions, mode):
         ax_i = (vx_i - vx_i_1) / dt
         ay_i = (vy_i - vy_i_1) / dt
         altitude = positions[i][1]
-        g = calculate_accelaration_due_to_gravity(altitude)
+        g = calculate_acceleration_due_to_gravity(altitude)
         ay_i += g
         total_acceleration += math.sqrt(ax_i**2 + ay_i**2)
 
@@ -737,32 +739,35 @@ def simulation_handler(v0, alpha, mode):
         True if the simulation is valid, False otherwise
     """
     success_forward = True
+    success_backward = True
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
     (
         positions_forward,
         velocities_forward,
+        accelerations_forward,
         time_forward,
         deploy_position_forward,
         parachute_forward,
-    ) = forward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
+    ) = forward_simulation(v0x, v0y, x, y, mode)
 
-    # (
-    #     positions_backward,
-    #     velocities_backward,
-    #     time_backward,
-    #     deploy_position_backward,
-    #     parachute_backward,
-    # ) = backward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
+    (
+        positions_backward,
+        velocities_backward,
+        accelerations_backward,
+        time_backward,
+        deploy_position_backward,
+        parachute_backward,
+    ) = backward_simulation(v0x, v0y, x, y, mode)
 
     x_forward, y_forward = zip(*positions_forward)
-    # x_backward, y_backward = zip(*positions_backward)
+    x_backward, y_backward = zip(*positions_backward)
 
     x_forward_km = [distance / 1000 for distance in x_forward]
     y_forward_km = [altitude / 1000 for altitude in y_forward]
-    # x_backward_km = [distance / 1000 for distance in x_backward]
-    # y_backward_km = [altitude / 1000 for altitude in y_backward]
+    x_backward_km = [distance / 1000 for distance in x_backward]
+    y_backward_km = [altitude / 1000 for altitude in y_backward]
 
     h_distance_forward = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
 
@@ -785,26 +790,74 @@ def simulation_handler(v0, alpha, mode):
     ):
         success_forward = False
 
-    # if (
-    #    h_distance_backward <= 2500
-    #    or h_distance_backward >= 4500
-    #    or g_value_backward >= 15
-    #    or g_value_backward <= 1
-    #    or final_velocity_backward >= 25
-    #    or final_velocity_backward <= 0
-    #    or not parachute_backward
-    # ):
-    #    success_backward = False
+    # Backward simulation
+    (
+        positions_backward,
+        velocities_backward,
+        accelerations_backward,
+        time_backward,
+        deploy_position_backward,
+        parachute_backward,
+    ) = backward_simulation(v0x, v0y, x, y, mode)
 
+    x_backward, y_backward = zip(*positions_backward)
+
+    x_backward_km = [distance / 1000 for distance in x_backward]
+    y_backward_km = [altitude / 1000 for altitude in y_backward]
+
+    h_distance_backward = calculate_horizontal_distance(
+        x_backward_km, y_backward_km, mode
+    )
+
+    final_velocity_backward = calculate_final_velocity(
+        velocities_backward[-1][0], velocities_backward[-1][1], mode
+    )
+
+    total_acceleration_backward, g_value_backward = calculate_g_value(
+        velocities_backward, time_backward, positions_backward, mode
+    )
+
+    if (
+        h_distance_backward <= 2500
+        or h_distance_backward >= 4500
+        or g_value_backward >= 15
+        or g_value_backward <= 1
+        or final_velocity_backward >= 25
+        or final_velocity_backward <= 0
+        or not parachute_backward
+    ):
+        success_backward = False
+
+    # Save the information to files
     if success_forward:
         save_info_to_file(
-            v0, alpha, h_distance_forward, final_velocity_forward, g_value_forward
+            v0,
+            alpha,
+            h_distance_forward,
+            final_velocity_forward,
+            g_value_forward,
+            results_file_forward,
         )
 
-    # if success_backward:
-    #   save_info_to_file(
-    #       v0, alpha, h_distance_backward, final_velocity_backward, g_value_backward
-    #   )
+    if success_backward:
+        save_info_to_file(
+            v0,
+            alpha,
+            h_distance_backward,
+            final_velocity_backward,
+            g_value_backward,
+            results_file_backward,
+        )
+
+    if success_forward and success_backward:
+        save_info_to_file(
+            v0,
+            alpha,
+            h_distance_forward,
+            final_velocity_forward,
+            g_value_forward,
+            results_file_forward_and_backward,
+        )
 
     if mode == "manual" or mode == "fast":
         # plot_trajectory_x_y(x_forward_km, y_forward_km, deploy_position, v0, alpha)
@@ -822,15 +875,33 @@ def simulation_handler(v0, alpha, mode):
         #   [velocity[1] for velocity in velocities_backward],
         #   time_backward,
         # )
-        if not success_forward:  # or not success_backward:
+        if not success_forward and success_backward:  # or not success_backward:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
 
-    return success_forward
+    return success_forward and success_backward
 
 
-def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
+def delete_old_results_files():
+    """
+    Delete the old results files
+    """
+    if os.path.exists(results_file_forward):
+        os.remove(results_file_forward)
+    if os.path.exists(results_file_backward):
+        os.remove(results_file_backward)
+    if os.path.exists(results_file_forward_and_backward):
+        os.remove(results_file_forward_and_backward)
+    print(
+        Fore.RED
+        + "A apagar ficheiros de resultados já existentes!!"
+        + Fore.RESET
+        + "\n"
+    )
+
+
+def save_info_to_file(v0, alpha, distance, final_velocity, g_value, file):
     """
     Save the information to a file
 
@@ -847,7 +918,7 @@ def save_info_to_file(v0, alpha, distance, final_velocity, g_value):
     g_value : float
         The g value
     """
-    with open(results_file_forward, "a") as file:
+    with open(file, "a") as file:
         file.write(f"{v0}\t{alpha}\t{distance}\t{final_velocity}\t{g_value}\n")
 
 
@@ -895,6 +966,7 @@ def run_automatic(mode, n_processes, spacing):
     valid_parameters : numpy array
         The valid parameters
     """
+    delete_old_results_files()
     start = time.time()
     v0_range = list(range(0, 15001, spacing))
     alpha_range = list(range(16))
@@ -980,11 +1052,17 @@ def handle_simulation_mode(user_input):
     Parameters
     ----------
     user_input : str
-        The user input
+        The mode selected by the user
     """
     if user_input == "1":
         mode = "automatic"
         print(Fore.MAGENTA + "Modo automático selecionado." + "\n" + Fore.RESET)
+        print(
+            Fore.RED
+            + "Este modo irá apagar os ficheiros de resultados existentes quando começar!!"
+            + "\n"
+            + Fore.RESET
+        )
 
         spacing = input(
             Fore.CYAN
@@ -1023,15 +1101,6 @@ def handle_simulation_mode(user_input):
             exit(1)
 
         print("Número de processos concurrentes: " + str(n_processes) + "\n")
-
-        if os.path.exists(results_file_forward):
-            print(
-                Fore.RED
-                + "A apagar ficheiro de resultados já existente!!"
-                + Fore.RESET
-                + "\n"
-            )
-            os.remove(results_file_forward)
 
         print(Fore.MAGENTA + "Correndo a simulação..." + Fore.RESET + "\n")
         run_automatic(mode, int(n_processes), int(spacing))

@@ -510,6 +510,6 @@ def simulation_handler(v0, alpha):
     )
 
 
-v0 = 8000  # velocidade inicial (m/s)
-alpha = 1  # ângulo de reentrada (graus)
+v0 = 7460  # velocidade inicial (m/s)
+alpha = 0  # ângulo de reentrada (graus)
 simulation_handler(v0, alpha)
