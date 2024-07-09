@@ -26,6 +26,8 @@ y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
 R_earth = 6371  # Earth's radius (km)
+M_earth_kg = 5.97e24 # Earth's mass (kg)
+G = 6.67430e-11 # Gravitational constant (m^3 kg^-1 s^-2)
 
 results_file_forward = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -245,8 +247,9 @@ def calculate_accelaration_due_to_gravity(y):
     float
         The acceleration due to gravity
     """
-    R_earth_m = R_earth * 1000
-    return g0 * (R_earth_m / (R_earth_m + y)) ** 2
+    R_earth_m = 6371 * 1000
+    g = G * M_earth_kg / (R_earth_m + y)**2
+    return g
 
 
 def print_parameters(v0, alpha):
@@ -325,11 +328,11 @@ def forward_simulation(vx, vy, x, y, Cd, Cl, A, Cdp, Ap, mode):
         Fd = drag_force(v, rho, drag_coefficient, area)
         Fl = lift_force(v, rho, Cl, area)
 
-        ax = Fd * np.cos(math.atan2(vy, vx)) / m
+        ax = (Fd * vx) / (m * v)
         if parachute:
-            ay = ((Fd * np.sin(math.atan2(vy, vx))) / m) - g
+            ay = ((Fd * vy) / (m * v)) - g
         else:
-            ay = ((Fd * np.sin(math.atan2(vy, vx)) + Fl) / m) - g
+            ay = ((Fd * vy) / (m * v)) + (Fl / m) - g
 
         vx += ax * dt
         vy += ay * dt
@@ -484,7 +487,7 @@ def calculate_horizontal_distance(x, y, mode):
     return distance
 
 
-def calculate_g_value(velocities, time, mode):
+def calculate_g_value(velocities, time, positions, mode):
     """
     Calculate the total acceleration and the g value.
 
@@ -513,6 +516,9 @@ def calculate_g_value(velocities, time, mode):
         vx_i_1, vy_i_1 = velocities[i - 1]
         ax_i = (vx_i - vx_i_1) / dt
         ay_i = (vy_i - vy_i_1) / dt
+        altitude = positions[i][1]
+        g = calculate_accelaration_due_to_gravity(altitude)
+        ay_i += g
         total_acceleration += math.sqrt(ax_i**2 + ay_i**2)
 
     g_value = total_acceleration / time / g0
@@ -734,21 +740,21 @@ def simulation_handler(v0, alpha, mode):
         parachute_forward,
     ) = forward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
 
-    (
-        positions_backward,
-        velocities_backward,
-        time_backward,
-        deploy_position_backward,
-        parachute_backward,
-    ) = backward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
+    # (
+    #     positions_backward,
+    #     velocities_backward,
+    #     time_backward,
+    #     deploy_position_backward,
+    #     parachute_backward,
+    # ) = backward_simulation(v0x, v0y, x, y, Cd, Cl, A, Cdp, Ap, mode)
 
     x_forward, y_forward = zip(*positions_forward)
-    x_backward, y_backward = zip(*positions_backward)
+    # x_backward, y_backward = zip(*positions_backward)
 
     x_forward_km = [distance / 1000 for distance in x_forward]
     y_forward_km = [altitude / 1000 for altitude in y_forward]
-    x_backward_km = [distance / 1000 for distance in x_backward]
-    y_backward_km = [altitude / 1000 for altitude in y_backward]
+    # x_backward_km = [distance / 1000 for distance in x_backward]
+    # y_backward_km = [altitude / 1000 for altitude in y_backward]
 
     h_distance_forward = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
 
@@ -757,7 +763,7 @@ def simulation_handler(v0, alpha, mode):
     )
 
     total_acceleration_forward, g_value_forward = calculate_g_value(
-        velocities_forward, time_forward, mode
+        velocities_forward, time_forward, positions_forward, mode
     )
 
     if (

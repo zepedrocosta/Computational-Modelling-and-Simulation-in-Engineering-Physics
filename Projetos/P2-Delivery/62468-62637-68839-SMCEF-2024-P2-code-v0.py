@@ -22,6 +22,8 @@ y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
 R_earth = 6371  # Earth's radius (km)
+M_earth_kg = 5.97e24 # Earth's mass (kg)
+G = 6.67430e-11 # Gravitational constant (m^3 kg^-1 s^-2)
 
 
 def calc_v0_components(v0, alpha):
@@ -122,8 +124,8 @@ def lift_force(v, rho, Cl, A):
 
 def calculate_accelaration_due_to_gravity(y):
     R_earth_m = 6371 * 1000
-    return g0 * (R_earth_m / (R_earth_m + y)) ** 2
-
+    g = G * M_earth_kg / (R_earth_m + y)**2
+    return g
 
 def forward_simulation(vx, vy, x, y):
     time = 0
@@ -147,11 +149,11 @@ def forward_simulation(vx, vy, x, y):
         Fd = drag_force(v, rho, drag_coefficient, area)
         Fl = lift_force(v, rho, Cl, area)
 
-        ax = Fd * np.cos(math.atan2(vy, vx)) / m
+        ax = (Fd * vx) / (m * v)
         if parachute:
-            ay = ((Fd * np.sin(math.atan2(vy, vx))) / m) - g
+            ay = ((Fd * vy) / (m * v)) - g
         else:
-            ay = ((Fd * np.sin(math.atan2(vy, vx)) + Fl) / m) - g
+            ay = ((Fd * vy) / (m * v)) + (Fl / m) - g
 
         vx += ax * dt
         vy += ay * dt
@@ -195,12 +197,13 @@ def backward_simulation(vx, vy, x, y):
 
             Fd = drag_force(v_next, rho, drag_coefficient, area)
             Fl = lift_force(v_next, rho, Cl, area)
-
-            ax_next = Fd * np.cos(math.atan2(vy_next, vx_next)) / m
+           
+            ax_next = (Fd * vx) / (m * v_next)
             if parachute:
-                ay_next = ((Fd * np.sin(math.atan2(vy_next, vx_next))) / m) - g
+                ay_next = ((Fd * vy) / (m * v_next)) - g
             else:
-                ay_next = ((Fd * np.sin(math.atan2(vy_next, vx_next)) + Fl) / m) - g
+                ay_next = ((Fd * vy) / (m * v_next)) + (Fl / m) - g
+
 
             vx_next = vx + ax_next * dt
             vy_next = vy + ay_next * dt
@@ -233,7 +236,7 @@ def calculate_horizontal_distance(x, y):
     return distance
 
 
-def calculate_g_value(velocities, time):
+def calculate_g_value(velocities, time, positions):
     n = len(velocities)
     total_acceleration = 0
     g_value = 0
@@ -243,6 +246,9 @@ def calculate_g_value(velocities, time):
         vx_i_1, vy_i_1 = velocities[i - 1]
         ax_i = (vx_i - vx_i_1) / dt
         ay_i = (vy_i - vy_i_1) / dt
+        altitude = positions[i][1]
+        g = calculate_accelaration_due_to_gravity(altitude)
+        ay_i += g
         total_acceleration += math.sqrt(ax_i**2 + ay_i**2)
 
     g_value = total_acceleration / time / g0
@@ -360,7 +366,7 @@ def simulation_handler(v0, alpha):
     )
 
     total_acceleration_forward, g_value_forward = calculate_g_value(
-        velocities_forward, time_forward
+        velocities_forward, time_forward, positions_forward
     )
 
     if (
@@ -394,7 +400,7 @@ def simulation_handler(v0, alpha):
         velocities_backward[-1][0], velocities_backward[-1][1]
     )
     total_acceleration_backward, g_value_backward = calculate_g_value(
-        velocities_backward, time_backward
+        velocities_backward, time_backward, positions_backward
     )
     if (
         h_distance_backward <= 2500
