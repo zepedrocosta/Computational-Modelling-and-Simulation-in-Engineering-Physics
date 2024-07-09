@@ -875,7 +875,7 @@ def simulation_handler(v0, alpha, mode):
         #   [velocity[1] for velocity in velocities_backward],
         #   time_backward,
         # )
-        if not success_forward and not success_backward:  # or not success_backward:
+        if not success_forward or not success_backward:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
             print("\n" + Fore.GREEN + "Simulação aceite!!" + Fore.RESET)
