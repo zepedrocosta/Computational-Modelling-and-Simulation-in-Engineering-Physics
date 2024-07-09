@@ -1,4 +1,5 @@
 import math
+import time
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 import numpy as np
@@ -22,8 +23,8 @@ y = 130000.0  # altitude (m)
 Cdp = 1.0  # drag coefficient of the parachute
 Ap = 301.0  # cross-sectional area of the parachute (m^2)
 R_earth = 6371  # Earth's radius (km)
-M_earth_kg = 5.97e24 # Earth's mass (kg)
-G = 6.67430e-11 # Gravitational constant (m^3 kg^-1 s^-2)
+M_earth_kg = 5.97e24  # Earth's mass (kg)
+G = 6.67430e-11  # Gravitational constant (m^3 kg^-1 s^-2)
 
 
 def calc_v0_components(v0, alpha):
@@ -124,13 +125,15 @@ def lift_force(v, rho, Cl, A):
 
 def calculate_accelaration_due_to_gravity(y):
     R_earth_m = 6371 * 1000
-    g = G * M_earth_kg / (R_earth_m + y)**2
+    g = G * M_earth_kg / (R_earth_m + y) ** 2
     return g
+
 
 def forward_simulation(vx, vy, x, y):
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
+    accelarations = [(0, 0)]
     drag_coefficient = Cd
     area = A
     parachute = False
@@ -162,13 +165,14 @@ def forward_simulation(vx, vy, x, y):
 
         positions.append((x, y))
         velocities.append((vx, vy))
+        accelarations.append((ax, ay))
 
         time += dt
 
         if y <= 0:
             break
 
-    return positions, velocities, time, deploy_position, parachute
+    return positions, velocities, time, accelarations, deploy_position, parachute
 
 
 def backward_simulation(vx, vy, x, y):
@@ -197,13 +201,12 @@ def backward_simulation(vx, vy, x, y):
 
             Fd = drag_force(v_next, rho, drag_coefficient, area)
             Fl = lift_force(v_next, rho, Cl, area)
-           
+
             ax_next = (Fd * vx) / (m * v_next)
             if parachute:
                 ay_next = ((Fd * vy) / (m * v_next)) - g
             else:
                 ay_next = ((Fd * vy) / (m * v_next)) + (Fl / m) - g
-
 
             vx_next = vx + ax_next * dt
             vy_next = vy + ay_next * dt
@@ -246,9 +249,11 @@ def calculate_g_value(velocities, time, positions):
         vx_i_1, vy_i_1 = velocities[i - 1]
         ax_i = (vx_i - vx_i_1) / dt
         ay_i = (vy_i - vy_i_1) / dt
+
         altitude = positions[i][1]
         g = calculate_accelaration_due_to_gravity(altitude)
         ay_i += g
+
         total_acceleration += math.sqrt(ax_i**2 + ay_i**2)
 
     g_value = total_acceleration / time / g0
@@ -336,17 +341,37 @@ def plot_velocities(
     plt.show()
 
 
+def plot_accelerations(ax_forward, ay_forward, time_forward):
+    fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+
+    n = len(ax_forward)
+    time_range_forward = np.linspace(0, time_forward, n)
+
+    ax.plot(time_range_forward, ax_forward, label="Ax Forward Method")
+    ax.plot(time_range_forward, ay_forward, label="Ay Forward Method")
+    ax.set_xlabel("Tempo (s)")
+    ax.set_ylabel("Aceleração (m/s^2)")
+    ax.legend()
+    ax.set_title("Acelerações - Forward Method")
+
+    plt.tight_layout()
+    plt.show()
+
+
 def simulation_handler(v0, alpha):
     success_forward = True
     success_backward = True
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
+    start = time.time()
+
     # Forward simulation
     (
         positions_forward,
         velocities_forward,
         time_forward,
+        accelarations_forward,
         deploy_position_forward,
         parachute_forward,
     ) = forward_simulation(v0x, v0y, x, y)
@@ -413,25 +438,9 @@ def simulation_handler(v0, alpha):
     ):
         success_backward = False
 
-    plot_trajectory(
-        x_forward_km,
-        y_forward_km,
-        deploy_position_forward,
-        x_backward_km,
-        y_backward_km,
-        deploy_position_backward,
-        v0,
-        alpha,
-    )
-
-    plot_velocities(
-        [velocity[0] for velocity in velocities_forward],
-        [velocity[1] for velocity in velocities_forward],
-        time_forward,
-        [velocity[0] for velocity in velocities_backward],
-        [velocity[1] for velocity in velocities_backward],
-        time_backward,
-    )
+    end = time.time()
+    elapsed_time = end - start
+    print(f"Tempo total de execução: {elapsed_time / 60} minutos" + "\n")
 
     if not success_forward:
         print("\n" + "Simulação com \x1B[3mforward method\x1B[0m não aceite!!")
@@ -453,7 +462,33 @@ def simulation_handler(v0, alpha):
             f"Valor de g: {g_value_backward}"
         )
 
+    plot_trajectory(
+        x_forward_km,
+        y_forward_km,
+        deploy_position_forward,
+        x_backward_km,
+        y_backward_km,
+        deploy_position_backward,
+        v0,
+        alpha,
+    )
 
-v0 = 8000
-alpha = 1
+    plot_velocities(
+        [velocity[0] for velocity in velocities_forward],
+        [velocity[1] for velocity in velocities_forward],
+        time_forward,
+        [velocity[0] for velocity in velocities_backward],
+        [velocity[1] for velocity in velocities_backward],
+        time_backward,
+    )
+
+    plot_accelerations(
+        [acceleration[0] for acceleration in accelarations_forward],
+        [acceleration[1] for acceleration in accelarations_forward],
+        time_forward,
+    )
+
+
+v0 = 8000  # velocidade inicial (m/s)
+alpha = 1  # ângulo de reentrada (graus)
 simulation_handler(v0, alpha)
