@@ -123,7 +123,7 @@ def lift_force(v, rho, Cl, A):
     return 0.5 * Cl * A * rho * v**2
 
 
-def calculate_accelaration_due_to_gravity(y):
+def calculate_acceleration_due_to_gravity(y):
     R_earth_m = 6371 * 1000
     g = G * M_earth_kg / (R_earth_m + y) ** 2
     return g
@@ -133,7 +133,7 @@ def forward_simulation(vx, vy, x, y):
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
-    accelarations = [(0, 0)]
+    accelerations = [(0, 0)]
     drag_coefficient = Cd
     area = A
     parachute = False
@@ -141,7 +141,7 @@ def forward_simulation(vx, vy, x, y):
     for _ in range(int(5000 / dt)):
         v = np.sqrt(vx**2 + vy**2)
         rho = air_density(y)
-        g = calculate_accelaration_due_to_gravity(y)
+        g = calculate_acceleration_due_to_gravity(y)
 
         if y <= 1000 and v <= 100 and not parachute:
             deploy_position = (x, y)
@@ -165,66 +165,84 @@ def forward_simulation(vx, vy, x, y):
 
         positions.append((x, y))
         velocities.append((vx, vy))
-        accelarations.append((ax, ay))
+        accelerations.append((ax, ay))
 
         time += dt
 
         if y <= 0:
             break
 
-    return positions, velocities, time, accelarations, deploy_position, parachute
+    return positions, velocities, time, accelerations, deploy_position, parachute
 
 
 def backward_simulation(vx, vy, x, y):
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
+    accelerations = [(0, 0)]
     drag_coefficient = Cd
     area = A
     parachute = False
     deploy_position = None
 
-    for _ in range(int(5000 / dt)):
-        vx_next, vy_next = vx, vy
-        x_next, y_next = x, y
+    def f(vx, vy, x, y, t, parachute):
+        v = math.sqrt(vx**2 + vy**2)
+        rho = air_density(y)
+        Fd = drag_force(v, rho, drag_coefficient, area)
+        Fl = lift_force(v, rho, Cl, area)
+        g = calculate_acceleration_due_to_gravity(y)
 
-        for _ in range(10):
-            v_next = np.sqrt(vx_next**2 + vy_next**2)
-            rho = air_density(y_next)
-            g = calculate_accelaration_due_to_gravity(y)
+        ax = (Fd * vx) / (m * v)
+        if parachute:
+            ay = ((Fd * vy) / (m * v)) - g
+        else:
+            ay = ((Fd * vy) / (m * v)) + (Fl / m) - g
 
-            if y_next <= 1000 and v_next <= 100 and not parachute:
-                deploy_position = (x_next, y_next)
-                drag_coefficient = Cd + Cdp
-                area = Ap
-                parachute = True
+        return ax, ay
 
-            Fd = drag_force(v_next, rho, drag_coefficient, area)
-            Fl = lift_force(v_next, rho, Cl, area)
+    while y > 0:
+        time += dt
 
-            ax_next = (Fd * vx) / (m * v_next)
-            if parachute:
-                ay_next = ((Fd * vy) / (m * v_next)) - g
-            else:
-                ay_next = ((Fd * vy) / (m * v_next)) + (Fl / m) - g
+        v = math.sqrt(vx**2 + vy**2)
+        if y <= 1000 and v <= 100 and not parachute:
+            deploy_position = (x, y)
+            drag_coefficient += Cdp
+            area = Ap
+            parachute = True
 
-            vx_next = vx + ax_next * dt
-            vy_next = vy + ay_next * dt
-            x_next = x + vx_next * dt
-            y_next = y + vy_next * dt
+        x_prev, y_prev = x, y
+        vx_prev, vy_prev = vx, vy
 
-        vx, vy = vx_next, vy_next
+        ax_prev, ay_prev = f(vx_prev, vy_prev, x_prev, y_prev, time, parachute)
+
+        J = np.array([[1, 0, -dt, 0], [0, 1, 0, -dt], [0, 0, 1, 0], [0, 0, 0, 1]])
+
+        b = np.array(
+            [
+                x_prev + vx_prev * dt,
+                y_prev + vy_prev * dt,
+                vx_prev + ax_prev * dt,
+                vy_prev + ay_prev * dt,
+            ]
+        )
+
+        # Solve the system
+        result = np.linalg.solve(J, b)
+        x_next, y_next, vx_next, vy_next = result
+
         x, y = x_next, y_next
+        vx, vy = vx_next, vy_next
+
+        ax, ay = f(vx, vy, x, y, time, parachute)
 
         positions.append((x, y))
         velocities.append((vx, vy))
-
-        time += dt
+        accelerations.append((ax, ay))
 
         if y <= 0:
             break
 
-    return positions, velocities, time, deploy_position, parachute
+    return positions, velocities, accelerations, time, deploy_position, parachute
 
 
 def calculate_horizontal_distance(x, y):
@@ -251,7 +269,7 @@ def calculate_g_value(velocities, time, positions):
         ay_i = (vy_i - vy_i_1) / dt
 
         altitude = positions[i][1]
-        g = calculate_accelaration_due_to_gravity(altitude)
+        g = calculate_acceleration_due_to_gravity(altitude)
         ay_i += g
 
         total_acceleration += math.sqrt(ax_i**2 + ay_i**2)
@@ -371,7 +389,7 @@ def simulation_handler(v0, alpha):
         positions_forward,
         velocities_forward,
         time_forward,
-        accelarations_forward,
+        accelerations_forward,
         deploy_position_forward,
         parachute_forward,
     ) = forward_simulation(v0x, v0y, x, y)
@@ -409,6 +427,7 @@ def simulation_handler(v0, alpha):
     (
         positions_backward,
         velocities_backward,
+        accelerations_backward,
         time_backward,
         deploy_position_backward,
         parachute_backward,
@@ -424,9 +443,11 @@ def simulation_handler(v0, alpha):
     final_velocity_backward = calculate_final_velocity(
         velocities_backward[-1][0], velocities_backward[-1][1]
     )
+
     total_acceleration_backward, g_value_backward = calculate_g_value(
         velocities_backward, time_backward, positions_backward
     )
+
     if (
         h_distance_backward <= 2500
         or h_distance_backward >= 4500
@@ -483,8 +504,8 @@ def simulation_handler(v0, alpha):
     )
 
     plot_accelerations(
-        [acceleration[0] for acceleration in accelarations_forward],
-        [acceleration[1] for acceleration in accelarations_forward],
+        [acceleration[0] for acceleration in accelerations_forward],
+        [acceleration[1] for acceleration in accelerations_forward],
         time_forward,
     )
 
