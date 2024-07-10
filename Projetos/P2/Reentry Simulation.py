@@ -30,6 +30,9 @@ R_earth = 6371  # Earth's radius (km)
 M_earth_kg = 5.97e24  # Earth's mass (kg)
 G = 6.67430e-11  # Gravitational constant (m^3 kg^-1 s^-2)
 
+fit_altitude = []
+fit_density = []
+
 # Paths to the results files
 results_file_forward = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -94,7 +97,7 @@ def exponential_model(x, A, B):
     return A * np.exp(B * x)
 
 
-def get_exponential_fit(altitude, density):
+def get_exponential_fit():
     """
     Get the exponential fit
 
@@ -112,39 +115,8 @@ def get_exponential_fit(altitude, density):
     fit_density : numpy array
         The density values of the fit
     """
-    altitude_norm = altitude / np.max(altitude)
-
-    initial_guess = (1e-3, -1)
-
-    params, _ = curve_fit(exponential_model, altitude_norm, density, p0=initial_guess)
-    A, B = params
-
-    fit_altitude_range = 150000
-    fit_altitude_norm = np.linspace(
-        min(altitude_norm), fit_altitude_range / np.max(altitude), 500
-    )
-    fit_density = exponential_model(fit_altitude_norm, A, B)
-
-    fit_altitude = fit_altitude_norm * np.max(altitude)
-
-    return fit_altitude, fit_density
-
-
-def air_density(altitude):
-    """
-    Get the air density at a given altitude
-
-    Parameters
-    ----------
-    altitude : float
-        The altitude
-
-    Returns
-    -------
-    float
-        The air density at the given altitude
-    """
-    altitudeArray = np.array(
+    global fit_altitude, fit_density
+    altitude = np.array(
         [
             -1000,
             0,
@@ -169,7 +141,7 @@ def air_density(altitude):
             80000,
         ]
     )
-    densityArray = np.array(
+    density = np.array(
         [
             1.347,
             1.225,
@@ -194,7 +166,38 @@ def air_density(altitude):
             0.00001846,
         ]
     )
-    fit_altitude, fit_density = get_exponential_fit(altitudeArray, densityArray)
+    altitude_norm = altitude / np.max(altitude)
+
+    initial_guess = (1e-3, -1)
+
+    params, _ = curve_fit(exponential_model, altitude_norm, density, p0=initial_guess)
+    A, B = params
+
+    fit_altitude_range = 150000
+    fit_altitude_norm = np.linspace(
+        min(altitude_norm), fit_altitude_range / np.max(altitude), 500
+    )
+    fit_d = exponential_model(fit_altitude_norm, A, B)
+
+    fit_a = fit_altitude_norm * np.max(altitude)
+
+    fit_density = fit_d
+    fit_altitude = fit_a
+
+def air_density(altitude):
+    """
+    Get the air density at a given altitude
+
+    Parameters
+    ----------
+    altitude : float
+        The altitude
+
+    Returns
+    -------
+    float
+        The air density at the given altitude
+    """
     density = np.interp(altitude, fit_altitude, fit_density)
     return density
 
@@ -371,7 +374,34 @@ def forward_simulation(vx, vy, x, y, mode):
     return positions, velocities, accelerations, time, deploy_position, parachute
 
 
-def residual(v_next, vx, vy, dt, m, Cd, Cl, A, g, rho, parachute):
+def residual(v_next, vx, vy, Cd, A, g, rho, parachute):
+    """
+    Calculate the residual
+
+    Parameters
+    ----------
+    v_next : numpy array
+        The next velocity
+    vx : float
+        The initial horizontal velocity
+    vy : float
+        The initial vertical velocity
+    Cd : float
+        The drag coefficient
+    A : float
+        The cross-sectional area
+    g : float
+        The acceleration due to gravity
+    rho : float
+        The air density
+    parachute : bool
+        True if the parachute is deployed, False otherwise
+
+    Returns
+    -------
+    numpy array
+        The residual
+    """
     v_mag = np.sqrt(v_next[0] ** 2 + v_next[1] ** 2)
     Fd = drag_force(v_mag, rho, Cd, A)
     Fl = lift_force(v_mag, rho, Cl, A) if not parachute else 0
@@ -385,7 +415,30 @@ def residual(v_next, vx, vy, dt, m, Cd, Cl, A, g, rho, parachute):
     return np.array([r0, r1])
 
 
-def jacobian(v_next, dt, m, Cd, Cl, A, g, rho, parachute):
+def jacobian(v_next, Cd, A, g, rho, parachute):
+    """
+    Calculate the Jacobian matrix
+
+    Parameters
+    ----------
+    v_next : numpy array
+        The next velocity
+    Cd : float
+        The drag coefficient
+    A : float
+        The cross-sectional area
+    g : float
+        The acceleration due to gravity
+    rho : float
+        The air density
+    parachute : bool
+        True if the parachute is deployed, False otherwise
+
+    Returns
+    -------
+    numpy array
+        The Jacobian matrix
+    """
     v_mag = np.sqrt(v_next[0] ** 2 + v_next[1] ** 2)
     Fd = drag_force(v_mag, rho, Cd, A)
     Fl = lift_force(v_mag, rho, Cl, A) if not parachute else 0
@@ -404,6 +457,37 @@ def jacobian(v_next, dt, m, Cd, Cl, A, g, rho, parachute):
 
 
 def backward_simulation(vx, vy, x, y, mode):
+    """
+    Backward method simulation using Newton-Raphson and the Backward Euler method
+
+    Parameters
+    ----------
+    vx : float
+        The initial horizontal velocity
+    vy : float
+        The initial vertical velocity
+    x : float
+        The initial horizontal position
+    y : float
+        The initial altitude
+    mode : str
+        The mode of the simulation
+
+    Returns
+    -------
+    positions : list
+        The positions of the object
+    velocities : list
+        The velocities of the object
+    accelerations : list
+        The accelerations of the object
+    time : float
+        The time of the simulation
+    deploy_position : tuple
+        The deploy position of the parachute
+    parachute : bool
+        True if the parachute is deployed, False otherwise
+    """
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
@@ -434,11 +518,9 @@ def backward_simulation(vx, vy, x, y, mode):
             parachute = True
 
         v_next = np.array([vx_next, vy_next])
-        for _ in range(10):  # Newton-Raphson iterations
-            r = residual(
-                v_next, vx, vy, dt, m, drag_coefficient, Cl, area, g, rho, parachute
-            )
-            J = jacobian(v_next, dt, m, drag_coefficient, Cl, area, g, rho, parachute)
+        for _ in range(10):
+            r = residual(v_next, vx, vy, drag_coefficient, area, g, rho, parachute)
+            J = jacobian(v_next, drag_coefficient, area, g, rho, parachute)
             delta_v = np.linalg.solve(J, -r)
             v_next += delta_v
             if np.linalg.norm(delta_v) < 1e-6:
@@ -1095,6 +1177,8 @@ def handle_simulation_mode(user_input):
     user_input : str
         The mode selected by the user
     """
+
+    get_exponential_fit()
     if user_input == "1":
         mode = "automatic"
         print(Fore.MAGENTA + "Modo automático selecionado." + "\n" + Fore.RESET)
