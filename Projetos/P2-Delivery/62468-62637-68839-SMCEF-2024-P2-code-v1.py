@@ -1261,7 +1261,7 @@ def handle_simulation_mode(user_input):
 
         n_processes = input(
             Fore.GREEN
-            + "Por favor insira o número de processos menor que o número de simulações a correr (default = 5): "
+            + "Por favor insira o número de processos concurrentes (número menor que o número de simulações a correr) (default = 5): "
             + Fore.RESET
         )
         if n_processes == "":
