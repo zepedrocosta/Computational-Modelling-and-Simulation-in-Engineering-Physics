@@ -331,7 +331,7 @@ def forward_simulation(vx, vy, x, y, mode):
                     + "Abrindo paraquedas! (Forward Method)"
                     + Fore.RESET
                     + "\n"
-                )  # indicar que é a forward
+                )
             deploy_position = (x, y)
             drag_coefficient += Cdp
             area = Ap
@@ -371,44 +371,39 @@ def forward_simulation(vx, vy, x, y, mode):
     return positions, velocities, accelerations, time, deploy_position, parachute
 
 
+def residual(v_next, vx, vy, dt, m, Cd, Cl, A, g, rho, parachute):
+    v_mag = np.sqrt(v_next[0] ** 2 + v_next[1] ** 2)
+    Fd = drag_force(v_mag, rho, Cd, A)
+    Fl = lift_force(v_mag, rho, Cl, A) if not parachute else 0
+
+    ax_next = (Fd * v_next[0]) / m
+    ay_next = ((Fd * v_next[1]) / m - g) + (Fl / m if not parachute else 0)
+
+    r0 = (v_next[0] - vx) / dt - ax_next
+    r1 = (v_next[1] - vy) / dt - ay_next
+
+    return np.array([r0, r1])
+
+
+def jacobian(v_next, dt, m, Cd, Cl, A, g, rho, parachute):
+    v_mag = np.sqrt(v_next[0] ** 2 + v_next[1] ** 2)
+    Fd = drag_force(v_mag, rho, Cd, A)
+    Fl = lift_force(v_mag, rho, Cl, A) if not parachute else 0
+
+    dFd_dvx = Fd * v_next[0] / v_mag
+    dFd_dvy = Fd * v_next[1] / v_mag
+    dFl_dvx = Fl * v_next[0] / v_mag if not parachute else 0
+    dFl_dvy = Fl * v_next[1] / v_mag if not parachute else 0
+
+    j00 = 1 / dt - dFd_dvx / m
+    j01 = -dFd_dvy / m
+    j10 = -dFd_dvx / m
+    j11 = 1 / dt - (dFd_dvy / m - g / m + dFl_dvy / m)
+
+    return np.array([[j00, j01], [j10, j11]])
+
+
 def backward_simulation(vx, vy, x, y, mode):
-    """
-    Backward method simulation using Euler's method
-
-    Parameters
-    ----------
-    vx : float
-        The initial horizontal velocity
-    vy : float
-        The initial vertical velocity
-    x : float
-        The initial horizontal position
-    y : float
-        The initial altitude
-    Cd : float
-        The drag coefficient
-    Cl : float
-        The lift coefficient
-    A : float
-        The cross-sectional area
-    Cdp : float
-        The drag coefficient of the parachute
-    Ap : float
-        The cross-sectional area of the parachute
-    mode : str
-        The mode of the simulation
-
-    Returns
-    -------
-    positions : list
-        The positions of the object
-    velocities : list
-        The velocities of the object
-    time_backward : float
-        The time of the simulation
-    deploy_position : tuple
-        The deploy position of the parachute
-    """
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
@@ -422,39 +417,42 @@ def backward_simulation(vx, vy, x, y, mode):
         vx_next, vy_next = vx, vy
         x_next, y_next = x, y
 
-        for _ in range(10):
-            v_next = np.sqrt(vx_next**2 + vy_next**2)
-            rho = air_density(y_next)
-            g = calculate_acceleration_due_to_gravity(y)
+        rho = air_density(y_next)
+        g = calculate_acceleration_due_to_gravity(y_next)
 
-            if y_next <= 1000 and v_next <= 100 and not parachute:
-                if mode == "manual" or mode == "fast":
-                    print(
-                        Fore.CYAN
-                        + "Abrindo paraquedas! (Backward Method)"
-                        + Fore.RESET
-                        + "\n"
-                    )
-                deploy_position = (x_next, y_next)
-                drag_coefficient = Cd + Cdp
-                area = Ap
-                parachute = True
+        if y_next <= 1000 and np.sqrt(vx_next**2 + vy_next**2) <= 100 and not parachute:
+            if mode == "manual" or mode == "fast":
+                print(
+                    Fore.CYAN
+                    + "Abrindo paraquedas! (Backward Method)"
+                    + Fore.RESET
+                    + "\n"
+                )
+            deploy_position = (x_next, y_next)
+            drag_coefficient = Cd + Cdp
+            area = Ap
+            parachute = True
 
-            Fd = drag_force(v_next, rho, drag_coefficient, area)
-            Fl = lift_force(v_next, rho, Cl, area)
+        v_next = np.array([vx_next, vy_next])
+        for _ in range(10):  # Newton-Raphson iterations
+            r = residual(
+                v_next, vx, vy, dt, m, drag_coefficient, Cl, area, g, rho, parachute
+            )
+            J = jacobian(v_next, dt, m, drag_coefficient, Cl, area, g, rho, parachute)
+            delta_v = np.linalg.solve(J, -r)
+            v_next += delta_v
+            if np.linalg.norm(delta_v) < 1e-6:
+                break
 
-            ax_next = (Fd * vx) / (m)
-            if parachute:
-                ay_next = ((Fd * vy) / (m)) - g
-            else:
-                ay_next = ((Fd * vy) / (m)) + (Fl / m) - g
+        vx_next, vy_next = v_next
 
-            accelerations.append((ax_next, ay_next))
+        ax_next = (vx_next - vx) / dt
+        ay_next = (vy_next - vy) / dt
 
-            vx_next = vx + ax_next * dt
-            vy_next = vy + ay_next * dt
-            x_next = x + vx_next * dt
-            y_next = y + vy_next * dt
+        x_next = x + vx_next * dt
+        y_next = y + vy_next * dt
+
+        accelerations.append((ax_next, ay_next))
 
         vx, vy = vx_next, vy_next
         x, y = x_next, y_next
@@ -469,7 +467,10 @@ def backward_simulation(vx, vy, x, y, mode):
 
     if mode == "manual" or mode == "fast":
         print(
-            Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
+            Fore.CYAN
+            + f"Tempo de reentrada: {time / 60} minutos (Backward Method)."
+            + "\n"
+            + Fore.RESET
         )
 
     return positions, velocities, accelerations, time, deploy_position, parachute
@@ -587,157 +588,180 @@ def calculate_final_velocity(vx, vy, mode):
     return final_velocity
 
 
-def plot_trajectory_x_y(x_forward, y_forward, deploy_position, v0, alpha):
+# Plots
+def plot_trajectory(
+    x_forward_km,
+    y_forward_km,
+    deploy_position_forward,
+    x_backward_km,
+    y_backward_km,
+    deploy_position_backward,
+    v0,
+    alpha,
+):
     """
-    Plot the trajectory of the object
+    Plot the trajectory
 
     Parameters
     ----------
-    x_forward : list
-        The horizontal positions
-    y_forward : list
-        The altitudes
-    deploy_position : tuple
-        The deploy position of the parachute
+    x_forward_km : list
+        The horizontal positions of the forward method
+    y_forward_km : list
+        The vertical positions of the forward method
+    deploy_position_forward : tuple
+        The deploy position of the parachute of the forward method
+    x_backward_km : list
+        The horizontal positions of the backward method
+    y_backward_km : list
+        The vertical positions of the backward method
+    deploy_position_backward : tuple
+        The deploy position of the parachute of the backward method
     v0 : float
         The initial velocity
     alpha : float
         The downward angle with the horizon
     """
-    plt.figure()
-    plt.plot(x_forward, y_forward, label="Forward Method")
-    if deploy_position:
-        plt.plot(
-            deploy_position[0] / 1000,
-            deploy_position[1] / 1000,
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.plot(x_forward_km, y_forward_km, label="Forward Method")
+    if deploy_position_forward:
+        ax.plot(
+            deploy_position_forward[0] / 1000,
+            deploy_position_forward[1] / 1000,
             "ro",
-            label="Deploy Position",
+            label="Posição de abertura do paraquedas (Forward)",
         )
-    plt.xlabel("Distância horizontal (km)")
-    plt.ylabel("Altitude (km)")
-    plt.legend()
-    plt.title(f"Trajetória de reentrada | v0 = {v0} m/s | alpha = {alpha} graus")
+
+    ax.plot(x_backward_km, y_backward_km, label="Backward Method")
+    if deploy_position_backward:
+        ax.plot(
+            deploy_position_backward[0] / 1000,
+            deploy_position_backward[1] / 1000,
+            "go",
+            label="Posição de abertura do paraquedas (Backward)",
+        )
+
+    ax.set_xlabel("Distância (km)")
+    ax.set_ylabel("Altitude (km)")
+    ax.legend()
+    ax.set_title(f"Trajetória de reentrada\nv0 = {v0} m/s | alpha = {alpha} graus")
+
+    plt.tight_layout()
     plt.show()
 
 
-def plot_trajectory_time_y(
-    x_forward, y_forward, time, deploy_position
-):  # plot_trajectory_forward_time_y
+def plot_velocities(
+    vx_forward,
+    vy_forward,
+    time_forward,
+    vx_backward,
+    vy_backward,
+    time_backward,
+    v0,
+    alpha,
+):
     """
-    Plot the trajectory of the object
+    Plot the velocities
 
     Parameters
     ----------
-    x_forward : list
-        The horizontal positions
-    y_forward : list
-        The altitudes
-    time : float
-        The time of the simulation
-    deploy_position : tuple
-        The deploy position of the parachute
+    vx_forward : list
+        The horizontal velocities of the forward method
+    vy_forward : list
+        The vertical velocities of the forward method
+    time_forward : float
+        The time of the forward simulation
+    vx_backward : list
+        The horizontal velocities of the backward method
+    vy_backward : list
+        The vertical velocities of the backward method
+    time_backward : float
+        The time of the backward simulation
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
     """
-    n = len(x_forward)
-    time_range = np.linspace(0, time, n)
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    plt.figure()
-    plt.plot(time_range, y_forward, label="Forward Method")
-    if deploy_position:
-        plt.plot(
-            time_range[-1],
-            deploy_position[1] / 1000,
-            "ro",
-            label="Deploy Position",
-        )
-    plt.xlabel("Tempo (s)")
-    plt.ylabel("Altitude (km)")
-    plt.legend()
-    plt.title("Trajetória de reentrada")
+    n_forward = len(vx_forward)
+    time_range_forward = np.linspace(0, time_forward, n_forward)
+
+    ax.plot(time_range_forward, vx_forward, label="Vx Forward Method")
+    ax.plot(time_range_forward, vy_forward, label="Vy Forward Method")
+
+    n_backward = len(vx_backward)
+    time_range_backward = np.linspace(0, time_backward, n_backward)
+
+    ax.plot(time_range_backward, vx_backward, label="Vx Backward Method")
+    ax.plot(time_range_backward, vy_backward, label="Vy Backward Method")
+
+    ax.set_xlabel("Tempo (s)")
+    ax.set_ylabel("Velocidade (m/s)")
+    ax.legend()
+    ax.set_title(
+        f"Velocidades - Forward and Backward Methods\nv0 = {v0} m/s | alpha = {alpha} graus"
+    )
+
+    plt.tight_layout()
     plt.show()
 
 
-def plot_velocities(vx, vy, time):  # plot_velocities_forward
+def plot_accelerations(
+    ax_forward,
+    ay_forward,
+    time_forward,
+    ax_backward,
+    ay_backward,
+    time_backward,
+    v0,
+    alpha,
+):
     """
-    Plot the velocities of the object
+    Plot the accelerations
 
     Parameters
     ----------
-    vx : list
-        The horizontal velocities
-    vy : list
-        The vertical velocities
-    time : float
-        The time of the simulation
+    ax_forward : list
+        The horizontal accelerations of the forward method
+    ay_forward : list
+        The vertical accelerations of the forward method
+    time_forward : float
+        The time of the forward simulation
+    ax_backward : list
+        The horizontal accelerations of the backward method
+    ay_backward : list
+        The vertical accelerations of the backward method
+    time_backward : float
+        The time of the backward simulation
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
     """
-    n = len(vx)
-    time_range = np.linspace(0, time, n)
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    plt.figure()
-    plt.plot(time_range, vx, label="Vx")
-    plt.plot(time_range, vy, label="Vy")
-    plt.xlabel("Tempo (s)")
-    plt.ylabel("Velocidade (m/s)")
-    plt.legend()
-    plt.title("Velocidades do objeto")
+    n_forward = len(ax_forward)
+    time_range_forward = np.linspace(0, time_forward, n_forward)
+
+    ax.plot(time_range_forward, ax_forward, label="Ax Forward Method")
+    ax.plot(time_range_forward, ay_forward, label="Ay Forward Method")
+
+    n_backward = len(ax_backward)
+    time_range_backward = np.linspace(0, time_backward, n_backward)
+
+    ax.plot(time_range_backward, ax_backward, label="Ax Backward Method")
+    ax.plot(time_range_backward, ay_backward, label="Ay Backward Method")
+
+    ax.set_xlabel("Tempo (s)")
+    ax.set_ylabel("Aceleração (m/s^2)")
+    ax.legend()
+    ax.set_title(
+        f"Acelerações - Forward and Backward Methods\nv0 = {v0} m/s | alpha = {alpha} graus"
+    )
+
+    plt.tight_layout()
     plt.show()
-
-
-# def plot_trajectory_backward_time_y(x_backward, y_backward, deploy_position, v0, alpha):
-#   """
-#   Plot the trajectory of the object
-
-#   Parameters
-#   ----------
-#   x_backward : list
-#       The horizontal positions
-#   y_backward : list
-#       The altitudes
-#   deploy_position : tuple
-#       The deploy position of the parachute
-#   v0 : float
-
-#   alpha : float
-#       The downward angle with the horizon
-#   """
-#   plt.figure()
-#   plt.plot(x_backward, y_backward, label="Backward Method")
-#   if deploy_position:
-#       plt.plot(
-#           deploy_position[0] / 1000,
-#           deploy_position[1] / 1000,
-#           "ro",
-#           label="Deploy Position",
-#       )
-#   plt.xlabel("Distância horizontal (km)")
-#   plt.ylabel("Altitude (km)")
-#   plt.legend()
-#   plt.title(f"Trajetória de reentrada")
-#   plt.show()
-
-# def plot_velocities_backward(vx, vy, time_backward):
-#   """
-#   Plot the velocities of the object
-
-#   Parameters
-#   ----------
-#   vx : list
-#       The horizontal velocities
-#   vy : list
-#       The vertical velocities
-#   time_backward : float
-#       The time of the simulation
-#   """
-#   n = len(vx)
-#   time_range = np.linspace(0, time_backward, n)
-
-#   plt.figure()
-#   plt.plot(time_range, vx, label="Vx")
-#   plt.plot(time_range, vy, label="Vy")
-#   plt.xlabel("Tempo (s)")
-#   plt.ylabel("Velocidade (m/s)")
-#   plt.legend()
-#   plt.title("Velocidades do objeto")
-#   plt.show()
 
 
 def simulation_handler(v0, alpha, mode):
@@ -861,28 +885,46 @@ def simulation_handler(v0, alpha, mode):
         save_info_to_file(
             v0,
             alpha,
-            h_distance_forward,
-            final_velocity_forward,
-            g_value_forward,
+            h_distance_backward,
+            final_velocity_backward,
+            g_value_backward,
             results_file_forward_and_backward,
         )
 
     if mode == "manual" or mode == "fast":
-        # plot_trajectory_x_y(x_forward_km, y_forward_km, deploy_position, v0, alpha)
-        plot_trajectory_time_y(  # plot_trajectory_forward_time_y
-            x_forward_km, y_forward_km, time_forward, deploy_position_forward
+        plot_trajectory(
+            x_forward_km,
+            y_forward_km,
+            deploy_position_forward,
+            x_backward_km,
+            y_backward_km,
+            deploy_position_backward,
+            v0,
+            alpha,
         )
-        # plot_trajectory_backward_x_y(x_backward_km, y_backward_km, deploy_position, v0, alpha)
-        plot_velocities(  # plot_velocities_forward
+
+        plot_velocities(
             [velocity[0] for velocity in velocities_forward],
             [velocity[1] for velocity in velocities_forward],
             time_forward,
+            [velocity[0] for velocity in velocities_backward],
+            [velocity[1] for velocity in velocities_backward],
+            time_backward,
+            v0,
+            alpha,
         )
-        # plot_velocities_backward(
-        #   [velocity[0] for velocity in velocities_backward],
-        #   [velocity[1] for velocity in velocities_backward],
-        #   time_backward,
-        # )
+
+        plot_accelerations(
+            [acceleration[0] for acceleration in accelerations_forward],
+            [acceleration[1] for acceleration in accelerations_forward],
+            time_forward,
+            [acceleration[0] for acceleration in accelerations_backward],
+            [acceleration[1] for acceleration in accelerations_backward],
+            time_backward,
+            v0,
+            alpha,
+        )
+
         if not success_forward or not success_backward:
             print("\n" + Fore.RED + "Simulação não aceite!!" + Fore.RESET)
         else:
