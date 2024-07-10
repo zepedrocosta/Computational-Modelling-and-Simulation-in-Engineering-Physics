@@ -184,6 +184,7 @@ def get_exponential_fit():
     fit_density = fit_d
     fit_altitude = fit_a
 
+
 def air_density(altitude):
     """
     Get the air density at a given altitude
@@ -443,10 +444,10 @@ def jacobian(v_next, Cd, A, g, rho, parachute):
     Fd = drag_force(v_mag, rho, Cd, A)
     Fl = lift_force(v_mag, rho, Cl, A) if not parachute else 0
 
-    dFd_dvx = Fd * v_next[0] / v_mag
-    dFd_dvy = Fd * v_next[1] / v_mag
-    dFl_dvx = Fl * v_next[0] / v_mag if not parachute else 0
-    dFl_dvy = Fl * v_next[1] / v_mag if not parachute else 0
+    dFd_dvx = Fd * v_next[0] / v_mag if v_mag != 0 else 0
+    dFd_dvy = Fd * v_next[1] / v_mag if v_mag != 0 else 0
+    dFl_dvx = Fl * v_next[0] / v_mag if v_mag != 0 and not parachute else 0
+    dFl_dvy = Fl * v_next[1] / v_mag if v_mag != 0 and not parachute else 0
 
     j00 = 1 / dt - dFd_dvx / m
     j01 = -dFd_dvy / m
@@ -846,6 +847,72 @@ def plot_accelerations(
     plt.show()
 
 
+def save_info_to_file_single(v0, alpha, distance, final_velocity, g_value, file):
+    """
+    Save the information to a file (single simulation)
+
+    Parameters
+    ----------
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
+    distance : float
+        The horizontal distance
+    final_velocity : float
+        The final velocity
+    g_value : float
+        The g value
+    """
+    file_exists = os.path.exists(file)
+
+    with open(file, "a") as f:
+        if not file_exists:
+            f.write(
+                "Velocidade Inicial\tAngulo (alpha)\tDistancia Horizontal\tVelociade Final\tValor de g\n"
+            )
+        f.write(f"{v0}\t{alpha}\t{distance}\t{final_velocity}\t{g_value}\n")
+
+
+def save_info_to_file_double(
+    v0,
+    alpha,
+    distance_forward,
+    final_velocity_forward,
+    g_value_forward,
+    distance_backward,
+    final_velocity_backward,
+    g_value_backward,
+    file,
+):
+    """
+    Save the information to a file (single simulation)
+
+    Parameters
+    ----------
+    v0 : float
+        The initial velocity
+    alpha : float
+        The downward angle with the horizon
+    distance : float
+        The horizontal distance
+    final_velocity : float
+        The final velocity
+    g_value : float
+        The g value
+    """
+    file_exists = os.path.exists(file)
+
+    with open(file, "a") as f:
+        if not file_exists:
+            f.write(
+                "Velocidade Inicial\tAngulo (alpha)\tDistancia Horizontal Forward\tVelociade Final Forward\tValor de g Forward\tDistancia Horizontal Backward\tVelociade Final Backward\tValor de g Backward\n"
+            )
+        f.write(
+            f"{v0}\t{alpha}\t{distance_forward}\t{final_velocity_forward}\t{g_value_forward}\t{distance_backward}\t{final_velocity_backward}\t{g_value_backward}\n"
+        )
+
+
 def simulation_handler(v0, alpha, mode):
     """
     Run the simulation
@@ -866,6 +933,8 @@ def simulation_handler(v0, alpha, mode):
     """
     success_forward = True
     success_backward = True
+
+    get_exponential_fit()
 
     v0x, v0y = calc_v0_components(v0, alpha)
 
@@ -944,7 +1013,7 @@ def simulation_handler(v0, alpha, mode):
 
     # Save the information to files
     if success_forward:
-        save_info_to_file(
+        save_info_to_file_single(
             v0,
             alpha,
             h_distance_forward,
@@ -954,7 +1023,7 @@ def simulation_handler(v0, alpha, mode):
         )
 
     if success_backward:
-        save_info_to_file(
+        save_info_to_file_single(
             v0,
             alpha,
             h_distance_backward,
@@ -964,16 +1033,19 @@ def simulation_handler(v0, alpha, mode):
         )
 
     if success_forward and success_backward:
-        save_info_to_file(
+        save_info_to_file_double(
             v0,
             alpha,
+            h_distance_forward,
+            final_velocity_forward,
+            g_value_forward,
             h_distance_backward,
             final_velocity_backward,
             g_value_backward,
             results_file_forward_and_backward,
         )
 
-    if mode == "manual" or mode == "fast":
+    if mode == "manual" or mode == "fast" and success_forward and success_backward:
         plot_trajectory(
             x_forward_km,
             y_forward_km,
@@ -1031,27 +1103,6 @@ def delete_old_results_files():
         + Fore.RESET
         + "\n"
     )
-
-
-def save_info_to_file(v0, alpha, distance, final_velocity, g_value, file):
-    """
-    Save the information to a file
-
-    Parameters
-    ----------
-    v0 : float
-        The initial velocity
-    alpha : float
-        The downward angle with the horizon
-    distance : float
-        The horizontal distance
-    final_velocity : float
-        The final velocity
-    g_value : float
-        The g value
-    """
-    with open(file, "a") as file:
-        file.write(f"{v0}\t{alpha}\t{distance}\t{final_velocity}\t{g_value}\n")
 
 
 def run_simulation_wrapper(params):
@@ -1178,7 +1229,6 @@ def handle_simulation_mode(user_input):
         The mode selected by the user
     """
 
-    get_exponential_fit()
     if user_input == "1":
         mode = "automatic"
         print(Fore.MAGENTA + "Modo automático selecionado." + "\n" + Fore.RESET)
