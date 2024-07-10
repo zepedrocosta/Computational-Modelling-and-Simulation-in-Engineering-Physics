@@ -98,21 +98,7 @@ def exponential_model(x, A, B):
 
 def get_exponential_fit():
     """
-    Get the exponential fit
-
-    Parameters
-    ----------
-    altitude : numpy array
-        The altitude values
-    density : numpy array
-        The density values
-
-    Returns
-    -------
-    fit_altitude : numpy array
-        The altitude values of the fit
-    fit_density : numpy array
-        The density values of the fit
+    Get the exponential fit of the air density data
     """
     global fit_altitude, fit_density
     altitude = np.array(
