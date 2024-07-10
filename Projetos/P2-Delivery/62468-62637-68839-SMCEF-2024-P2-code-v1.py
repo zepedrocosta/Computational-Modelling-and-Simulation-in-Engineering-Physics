@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from multiprocessing import Pool
 from colorama import Fore
-from scipy.optimize import fsolve
 
 """
 SMCEF - 2024 - P2 - Reentry of a Space Capsule
