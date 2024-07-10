@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from multiprocessing import Pool
 from colorama import Fore
+from scipy.optimize import fsolve
 
 """
 SMCEF - 2024 - P2 - Reentry of a Space Capsule
@@ -29,6 +30,7 @@ R_earth = 6371  # Earth's radius (km)
 M_earth_kg = 5.97e24  # Earth's mass (kg)
 G = 6.67430e-11  # Gravitational constant (m^3 kg^-1 s^-2)
 
+# Paths to the results files
 results_file_forward = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "accepted_simulations_forward_method.tsv",
@@ -291,16 +293,6 @@ def forward_simulation(vx, vy, x, y, mode):
         The initial horizontal position
     y : float
         The initial altitude
-    Cd : float
-        The drag coefficient
-    Cl : float
-        The lift coefficient
-    A : float
-        The cross-sectional area
-    Cdp : float
-        The drag coefficient of the parachute
-    Ap : float
-        The cross-sectional area of the parachute
     mode : str
         The mode of the simulation
 
@@ -310,15 +302,19 @@ def forward_simulation(vx, vy, x, y, mode):
         The positions of the object
     velocities : list
         The velocities of the object
+    accelerations : list
+        The accelerations of the object
     time : float
         The time of the simulation
     deploy_position : tuple
         The deploy position of the parachute
+    parachute : bool
+        True if the parachute is deployed, False otherwise
     """
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
-    accelerations = [(0, 0)]
+    accelerations = []
     drag_coefficient = Cd
     area = A
     parachute = False
@@ -366,93 +362,115 @@ def forward_simulation(vx, vy, x, y, mode):
 
     if mode == "manual" or mode == "fast":
         print(
-            Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
+            Fore.CYAN
+            + f"Tempo de reentrada: {time / 60} minutos (Forward Method)."
+            + "\n"
+            + Fore.RESET
         )
 
     return positions, velocities, accelerations, time, deploy_position, parachute
 
 
 def backward_simulation(vx, vy, x, y, mode):
+    """
+    Backward method simulation using Euler's method
+
+    Parameters
+    ----------
+    vx : float
+        The initial horizontal velocity
+    vy : float
+        The initial vertical velocity
+    x : float
+        The initial horizontal position
+    y : float
+        The initial altitude
+    Cd : float
+        The drag coefficient
+    Cl : float
+        The lift coefficient
+    A : float
+        The cross-sectional area
+    Cdp : float
+        The drag coefficient of the parachute
+    Ap : float
+        The cross-sectional area of the parachute
+    mode : str
+        The mode of the simulation
+
+    Returns
+    -------
+    positions : list
+        The positions of the object
+    velocities : list
+        The velocities of the object
+    time_backward : float
+        The time of the simulation
+    deploy_position : tuple
+        The deploy position of the parachute
+    """
     time = 0
     positions = [(x, y)]
     velocities = [(vx, vy)]
-    accelerations = [(0, 0)]
+    accelerations = []
     drag_coefficient = Cd
     area = A
     parachute = False
     deploy_position = None
 
-    def f(vx, vy, x, y, t, parachute):
-        v = math.sqrt(vx**2 + vy**2)
-        rho = air_density(y)
-        Fd = drag_force(v, rho, drag_coefficient, area)
-        Fl = lift_force(v, rho, Cl, area)
-        g = calculate_acceleration_due_to_gravity(y)
+    for _ in range(int(5000 / dt)):
+        vx_next, vy_next = vx, vy
+        x_next, y_next = x, y
 
-        ax = (Fd * vx) / (m)
-        if parachute:
-            ay = ((Fd * vy) / (m)) - g
-        else:
-            ay = ((Fd * vy) / (m)) + (Fl / m) - g
+        for _ in range(10):
+            v_next = np.sqrt(vx_next**2 + vy_next**2)
+            rho = air_density(y_next)
+            g = calculate_acceleration_due_to_gravity(y)
 
-        return ax, ay
+            if y_next <= 1000 and v_next <= 100 and not parachute:
+                if mode == "manual" or mode == "fast":
+                    print(
+                        Fore.CYAN
+                        + "Abrindo paraquedas! (Backward Method)"
+                        + Fore.RESET
+                        + "\n"
+                    )
+                deploy_position = (x_next, y_next)
+                drag_coefficient = Cd + Cdp
+                area = Ap
+                parachute = True
 
-    while y > 0:
-        time += dt
+            Fd = drag_force(v_next, rho, drag_coefficient, area)
+            Fl = lift_force(v_next, rho, Cl, area)
 
-        v = math.sqrt(vx**2 + vy**2)
-        if y <= 1000 and v <= 100 and not parachute:
-            if mode == "manual" or mode == "fast":
-                print(
-                    Fore.CYAN
-                    + "Abrindo paraquedas! (Backward Method)"
-                    + Fore.RESET
-                    + "\n"
-                )  # indicar que é a forward
-            deploy_position = (x, y)
-            drag_coefficient += Cdp
-            area = Ap
-            parachute = True
+            ax_next = (Fd * vx) / (m)
+            if parachute:
+                ay_next = ((Fd * vy) / (m)) - g
+            else:
+                ay_next = ((Fd * vy) / (m)) + (Fl / m) - g
 
-        x_prev, y_prev = x, y
-        vx_prev, vy_prev = vx, vy
+            accelerations.append((ax_next, ay_next))
 
-        ax_prev, ay_prev = f(vx_prev, vy_prev, x_prev, y_prev, time, parachute)
+            vx_next = vx + ax_next * dt
+            vy_next = vy + ay_next * dt
+            x_next = x + vx_next * dt
+            y_next = y + vy_next * dt
 
-        J = np.array([[1, 0, -dt, 0], [0, 1, 0, -dt], [0, 0, 1, 0], [0, 0, 0, 1]])
-
-        b = np.array(
-            [
-                x_prev + vx_prev * dt,
-                y_prev + vy_prev * dt,
-                vx_prev + ax_prev * dt,
-                vy_prev + ay_prev * dt,
-            ]
-        )
-
-        # Solve the system
-        result = np.linalg.solve(J, b)
-        x_next, y_next, vx_next, vy_next = result
-
-        x, y = x_next, y_next
         vx, vy = vx_next, vy_next
-
-        ax, ay = f(vx, vy, x, y, time, parachute)
+        x, y = x_next, y_next
 
         positions.append((x, y))
         velocities.append((vx, vy))
-        accelerations.append((ax, ay))
+
+        time += dt
 
         if y <= 0:
             break
 
-        if mode == "manual" or mode == "fast":
-            print(
-                Fore.CYAN
-                + f"Tempo de reentrada: {time / 60} minutos"
-                + "\n"
-                + Fore.RESET
-            )
+    if mode == "manual" or mode == "fast":
+        print(
+            Fore.CYAN + f"Tempo de reentrada: {time / 60} minutos" + "\n" + Fore.RESET
+        )
 
     return positions, velocities, accelerations, time, deploy_position, parachute
 
@@ -534,6 +552,8 @@ def calculate_g_value(velocities, time, positions, mode):
             print(Fore.RED + f"Valor de g: {g_value}" + Fore.RESET)
         else:
             print(Fore.GREEN + f"Valor de g: {g_value}" + Fore.RESET)
+
+        print("\n")
 
     return total_acceleration, g_value
 
@@ -752,22 +772,10 @@ def simulation_handler(v0, alpha, mode):
         parachute_forward,
     ) = forward_simulation(v0x, v0y, x, y, mode)
 
-    (
-        positions_backward,
-        velocities_backward,
-        accelerations_backward,
-        time_backward,
-        deploy_position_backward,
-        parachute_backward,
-    ) = backward_simulation(v0x, v0y, x, y, mode)
-
     x_forward, y_forward = zip(*positions_forward)
-    x_backward, y_backward = zip(*positions_backward)
 
     x_forward_km = [distance / 1000 for distance in x_forward]
     y_forward_km = [altitude / 1000 for altitude in y_forward]
-    x_backward_km = [distance / 1000 for distance in x_backward]
-    y_backward_km = [altitude / 1000 for altitude in y_backward]
 
     h_distance_forward = calculate_horizontal_distance(x_forward_km, y_forward_km, mode)
 
@@ -956,15 +964,6 @@ def run_automatic(mode, n_processes, spacing):
         The number of processes to run concurrently
     spacing : int
         The spacing between the values of v0
-
-    Returns
-    -------
-    success_count : int
-        The number of successful simulations
-    simulation_count : int
-        The number of simulations
-    valid_parameters : numpy array
-        The valid parameters
     """
     delete_old_results_files()
     start = time.time()
