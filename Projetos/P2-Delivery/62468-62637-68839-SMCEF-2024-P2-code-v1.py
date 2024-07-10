@@ -69,8 +69,8 @@ def calc_v0_components(v0, alpha):
     """
     alphaRad = math.radians(alpha)
 
-    vx = v0 * math.cos(alphaRad)  # Initial horizontal velocity
-    vy = -(v0 * math.sin(alphaRad))  # Initial vertical velocity
+    vx = v0 * math.cos(alphaRad)
+    vy = -(v0 * math.sin(alphaRad))
 
     return vx, vy
 
